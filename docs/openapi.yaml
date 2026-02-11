@@ -1,0 +1,643 @@
+openapi: 3.0.3
+info:
+  title: XRPL MPT Traceability Service API
+  description: |
+    XRPL（XRP Ledger）上で Multi-Purpose Token（MPT）を扱うバックエンドサービスの REST API。
+
+    MPT の mint / transfer / burn（clawback）操作を管理し、安全な鍵管理、冪等性保証、
+    再開可能な状態管理を提供します。
+
+    **注意**: 現在、認証は実装されていません（PoC段階）
+  version: 1.0.0
+  contact:
+    name: API Support
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3005
+    description: ローカル開発環境
+  - url: https://api.example.com
+    description: 本番環境（未実装）
+
+tags:
+  - name: health
+    description: ヘルスチェック
+  - name: wallets
+    description: ウォレット管理
+  - name: operations
+    description: MPT 操作（mint/transfer/burn）
+
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: ヘルスチェック
+      description: サーバーの状態を確認します
+      operationId: getHealth
+      responses:
+        '200':
+          description: サーバーは正常に動作しています
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2026-01-05T07:00:00.000Z'
+
+  /api/wallets:
+    post:
+      tags:
+        - wallets
+      summary: User ウォレット作成
+      description: |
+        新しい XRPL user ウォレットを作成します。
+
+        **注意**: issuer ウォレットは .env で管理されています。
+      operationId: createWallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWalletRequest'
+      responses:
+        '201':
+          description: ウォレットが正常に作成されました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/wallets/{walletId}:
+    get:
+      tags:
+        - wallets
+      summary: ウォレット取得
+      description: 指定されたウォレットの情報を取得します
+      operationId: getWallet
+      parameters:
+        - $ref: '#/components/parameters/WalletIdPath'
+      responses:
+        '200':
+          description: ウォレット情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/wallets/{walletId}/fund:
+    post:
+      tags:
+        - wallets
+      summary: ウォレットへの資金供給
+      description: |
+        テストネット/デブネットの faucet から user ウォレットに XRP を供給します。
+
+        **注意**:
+        - テストネット/デブネット専用（本番環境では使用不可）
+        - Issuer ウォレットへの資金供給はできません
+        - 固定で 1000 XRP が供給されます
+        - Faucet にはレート制限があります（5-10リクエスト/分）
+      operationId: fundWallet
+      parameters:
+        - $ref: '#/components/parameters/WalletIdPath'
+      responses:
+        '200':
+          description: 資金供給が正常に完了しました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundWalletResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/operations/mint:
+    post:
+      tags:
+        - operations
+      summary: Mint 操作
+      description: |
+        MPT を発行してユーザーに配布します。
+
+        処理フロー:
+        1. Issuer が MPT を mint（MPTokenIssuanceCreate）
+        2. User が authorize（MPTokenAuthorize）
+        3. Issuer が User に transfer（Payment）
+
+        注意:
+        - Issuer は環境変数 ISSUER_SEED から自動的に決定されます
+        - assetScale は常に 0 に固定されます
+        - maximumAmount は指定された amount と同じ値に自動設定されます
+        - transferFee は常に 0 に固定されます
+      operationId: createMintOperation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MintRequest'
+      responses:
+        '201':
+          description: Mint 操作が正常に作成されました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '200':
+          description: 同じ冪等性キーで既に操作が存在します
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/operations/transfer:
+    post:
+      tags:
+        - operations
+      summary: Transfer 操作
+      description: |
+        MPT をあるユーザーから別のユーザーに転送します。
+
+        処理フロー:
+        1. Receiver が authorize（MPTokenAuthorize）
+        2. Sender が transfer（Payment）
+      operationId: createTransferOperation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '201':
+          description: Transfer 操作が正常に作成されました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '200':
+          description: 同じ冪等性キーで既に操作が存在します
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/operations/burn:
+    post:
+      tags:
+        - operations
+      summary: Burn 操作
+      description: |
+        Issuer が holder から MPT を clawback（回収）します。
+
+        処理フロー:
+        1. Issuer が clawback（Clawback）
+      operationId: createBurnOperation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BurnRequest'
+      responses:
+        '201':
+          description: Burn 操作が正常に作成されました
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '200':
+          description: 同じ冪等性キーで既に操作が存在します
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/operations/{operationId}:
+    get:
+      tags:
+        - operations
+      summary: 操作状態取得（詳細）
+      description: 操作の詳細な状態とすべてのステップを取得します
+      operationId: getOperationStatus
+      parameters:
+        - $ref: '#/components/parameters/OperationIdPath'
+        - name: status
+          in: query
+          description: true の場合、軽量版の状態のみを返します
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: 操作の状態
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/OperationDetailResponse'
+                  - $ref: '#/components/schemas/OperationLightweightResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    CreateWalletRequest:
+      type: object
+      properties:
+        seed:
+          type: string
+          description: （任意）既存のシードをインポートする場合
+          example: sXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+    WalletResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ウォレットID（UUIDまたは'issuer'）
+          example: 123e4567-e89b-12d3-a456-426614174000
+        xrplAddress:
+          type: string
+          description: XRPL アドレス
+          example: rN7n7otQDd6FczFgLdHmTKPSSmfLvUMnQR
+        createdAt:
+          type: string
+          format: date-time
+          description: 作成日時
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新日時
+
+    FundWalletResponse:
+      type: object
+      properties:
+        walletId:
+          type: string
+          format: uuid
+          description: ウォレットID
+          example: 123e4567-e89b-12d3-a456-426614174000
+        xrplAddress:
+          type: string
+          description: XRPL アドレス
+          example: rN7n7otQDd6FczFgLdHmTKPSSmfLvUMnQR
+        balanceBefore:
+          type: number
+          description: 資金供給前の残高（XRP）
+          example: 0
+        balanceAfter:
+          type: number
+          description: 資金供給後の残高（XRP）
+          example: 1000
+        amountFunded:
+          type: string
+          description: 供給された金額（XRP）
+          example: '1000'
+
+    MintRequest:
+      type: object
+      required:
+        - idempotencyKey
+        - userWalletId
+        - amount
+      properties:
+        idempotencyKey:
+          type: string
+          description: 冪等性キー（重複実行を防ぐ）
+          example: mint-001
+        userWalletId:
+          type: string
+          format: uuid
+          description: 受取者のウォレットID
+          example: 223e4567-e89b-12d3-a456-426614174000
+        amount:
+          type: string
+          description: |
+            発行量（文字列）
+
+            注意: この値は自動的に maximumAmount としても使用されます。
+            つまり、指定した amount が発行可能な最大量となります。
+          example: '1000'
+        metadata:
+          type: string
+          description: MPT メタデータ（任意）
+          example: My First MPT
+
+    TransferRequest:
+      type: object
+      required:
+        - idempotencyKey
+        - fromWalletId
+        - toWalletId
+        - issuanceId
+        - amount
+      properties:
+        idempotencyKey:
+          type: string
+          description: 冪等性キー
+          example: transfer-001
+        fromWalletId:
+          type: string
+          format: uuid
+          description: 送信者のウォレットID
+        toWalletId:
+          type: string
+          format: uuid
+          description: 受信者のウォレットID
+        issuanceId:
+          type: string
+          description: MPT Issuance ID
+          example: 000000012345678900000000ABCDEF1234567890
+        amount:
+          type: string
+          description: 転送量
+          example: '500'
+
+    BurnRequest:
+      type: object
+      required:
+        - idempotencyKey
+        - issuerWalletId
+        - holderWalletId
+        - issuanceId
+        - amount
+      properties:
+        idempotencyKey:
+          type: string
+          description: 冪等性キー
+          example: burn-001
+        issuerWalletId:
+          type: string
+          format: uuid
+          description: 発行者のウォレットID
+        holderWalletId:
+          type: string
+          format: uuid
+          description: 保有者のウォレットID
+        issuanceId:
+          type: string
+          description: MPT Issuance ID
+          example: 000000012345678900000000ABCDEF1234567890
+        amount:
+          type: string
+          description: 回収量
+          example: '100'
+
+    OperationResponse:
+      type: object
+      properties:
+        operationId:
+          type: string
+          format: uuid
+          description: 操作ID
+        status:
+          $ref: '#/components/schemas/OperationStatus'
+        message:
+          type: string
+          description: メッセージ
+          example: Mint operation created and execution started
+        issuanceId:
+          type: string
+          description: MPT Issuance ID（存在する場合）
+        steps:
+          type: array
+          description: ステップのサマリー
+          items:
+            type: object
+            properties:
+              stepNo:
+                type: integer
+                description: ステップ番号
+              kind:
+                type: string
+                description: ステップの種類
+              status:
+                $ref: '#/components/schemas/StepStatus'
+
+    OperationDetailResponse:
+      type: object
+      properties:
+        operation:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            type:
+              $ref: '#/components/schemas/OperationType'
+            idempotencyKey:
+              type: string
+            issuanceId:
+              type: string
+              nullable: true
+            fromWalletId:
+              type: string
+              format: uuid
+              nullable: true
+            toWalletId:
+              type: string
+              format: uuid
+              nullable: true
+            amount:
+              type: string
+            status:
+              $ref: '#/components/schemas/OperationStatus'
+            errorCode:
+              type: string
+              nullable: true
+            errorMessage:
+              type: string
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationStep'
+
+    OperationLightweightResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/OperationType'
+        status:
+          $ref: '#/components/schemas/OperationStatus'
+        issuanceId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OperationStep:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        stepNo:
+          type: integer
+        kind:
+          type: string
+        walletId:
+          type: string
+          format: uuid
+        txType:
+          type: string
+        txHash:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/StepStatus'
+        submitResult:
+          type: object
+          nullable: true
+        validatedResult:
+          type: object
+          nullable: true
+        lastCheckedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OperationType:
+      type: string
+      enum: [mint, transfer, burn]
+      description: 操作タイプ
+
+    OperationStatus:
+      type: string
+      enum: [PENDING, IN_PROGRESS, SUCCESS, FAILED]
+      description: |
+        操作のステータス:
+        - PENDING: 実行待ち
+        - IN_PROGRESS: 実行中
+        - SUCCESS: 完了
+        - FAILED: 失敗
+
+    StepStatus:
+      type: string
+      enum: [PENDING, SUBMITTED, PENDING_VALIDATION, VALIDATED_SUCCESS, VALIDATED_FAILED, TIMEOUT]
+      description: |
+        ステップのステータス:
+        - PENDING: 未実行
+        - SUBMITTED: トランザクション送信済み
+        - PENDING_VALIDATION: 検証待ち
+        - VALIDATED_SUCCESS: 検証成功
+        - VALIDATED_FAILED: 検証失敗
+        - TIMEOUT: タイムアウト
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: エラーメッセージ
+        details:
+          type: string
+          description: 詳細なエラー情報
+        required:
+          type: array
+          description: 必須フィールド（バリデーションエラーの場合）
+          items:
+            type: string
+
+  parameters:
+    WalletIdPath:
+      name: walletId
+      in: path
+      required: true
+      description: ウォレットID
+      schema:
+        type: string
+        format: uuid
+
+    OperationIdPath:
+      name: operationId
+      in: path
+      required: true
+      description: 操作ID
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: リクエストが不正です
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Missing required fields
+            required: [idempotencyKey, issuerWalletId, userWalletId, amount]
+
+    NotFound:
+      description: リソースが見つかりません
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Operation not found
+
+    InternalServerError:
+      description: サーバーエラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Internal server error
+            details: Unexpected error occurred
