@@ -392,7 +392,6 @@ components:
       type: object
       required:
         - idempotencyKey
-        - issuerWalletId
         - holderWalletId
         - issuanceId
         - amount
@@ -401,10 +400,6 @@ components:
           type: string
           description: Idempotency key
           example: burn-001
-        issuerWalletId:
-          type: string
-          format: uuid
-          description: Issuer's wallet ID
         holderWalletId:
           type: string
           format: uuid
@@ -621,7 +616,7 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error: Missing required fields
-            required: [idempotencyKey, issuerWalletId, userWalletId, amount]
+            required: [idempotencyKey, userWalletId, amount]
 
     NotFound:
       description: Resource not found

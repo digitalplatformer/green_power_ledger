@@ -18,7 +18,6 @@ import { WalletSecretManager } from '../services/wallet-secret-manager';
 export interface MintOperationParams {
   operationId: string;
   issuanceId: string;
-  issuerWalletId: string;
   userWalletId: string;
   amount: string;
   assetScale?: number;
@@ -84,11 +83,12 @@ export class MintOperation extends BaseOperation {
    */
   private async executeIssuerMint(step: OperationStep): Promise<void> {
     try {
-      // 1. Get issuer's secret key
-      const issuerSecret = await this.secretManager.retrieveSecret(
-        this.params.issuerWalletId
-      );
-      const issuerWallet = Wallet.fromSeed(issuerSecret);
+      // 1. Get issuer's wallet from environment variable
+      const issuerSeed = process.env.ISSUER_SEED;
+      if (!issuerSeed) {
+        throw new Error('ISSUER_SEED is not configured in .env');
+      }
+      const issuerWallet = Wallet.fromSeed(issuerSeed);
 
       // 2. Build MPTokenIssuanceCreate transaction
       const tx = buildMPTokenIssuanceCreate({
@@ -221,11 +221,12 @@ export class MintOperation extends BaseOperation {
    */
   private async executeIssuerTransfer(step: OperationStep): Promise<void> {
     try {
-      // 1. Get issuer's secret key
-      const issuerSecret = await this.secretManager.retrieveSecret(
-        this.params.issuerWalletId
-      );
-      const issuerWallet = Wallet.fromSeed(issuerSecret);
+      // 1. Get issuer's wallet from environment variable
+      const issuerSeed = process.env.ISSUER_SEED;
+      if (!issuerSeed) {
+        throw new Error('ISSUER_SEED is not configured in .env');
+      }
+      const issuerWallet = Wallet.fromSeed(issuerSeed);
 
       // 2. Get user's address
       const userAddress = await this.getUserAddress();

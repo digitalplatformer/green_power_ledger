@@ -1,5 +1,5 @@
 -- 001_create_wallets.sql
--- Wallets テーブル: XRPL アカウントおよび暗号化された秘密鍵を保存
+-- Wallets table: Stores XRPL accounts and encrypted secret keys
 
 CREATE TABLE IF NOT EXISTS wallets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -16,10 +16,10 @@ CREATE TABLE IF NOT EXISTS wallets (
 CREATE INDEX idx_wallets_owner ON wallets(owner_type, owner_id);
 CREATE INDEX idx_wallets_address ON wallets(xrpl_address);
 
-COMMENT ON TABLE wallets IS 'XRPL ウォレット情報と暗号化された秘密鍵';
-COMMENT ON COLUMN wallets.owner_type IS 'ウォレット所有者タイプ: user または issuer';
-COMMENT ON COLUMN wallets.owner_id IS 'ウォレット所有者の識別子';
-COMMENT ON COLUMN wallets.xrpl_address IS 'XRPL アドレス（公開鍵）';
-COMMENT ON COLUMN wallets.encrypted_secret IS 'AES-256-GCM で暗号化された秘密鍵';
-COMMENT ON COLUMN wallets.encryption_key_id IS '将来の KMS 用（現在は NULL）';
-COMMENT ON COLUMN wallets.encryption_context IS '暗号化メタデータ（IV, auth tag など）';
+COMMENT ON TABLE wallets IS 'XRPL wallet information and encrypted secret keys';
+COMMENT ON COLUMN wallets.owner_type IS 'Wallet owner type: user or issuer';
+COMMENT ON COLUMN wallets.owner_id IS 'Wallet owner identifier';
+COMMENT ON COLUMN wallets.xrpl_address IS 'XRPL address (public key)';
+COMMENT ON COLUMN wallets.encrypted_secret IS 'Secret key encrypted with AES-256-GCM';
+COMMENT ON COLUMN wallets.encryption_key_id IS 'For future KMS use (currently NULL)';
+COMMENT ON COLUMN wallets.encryption_context IS 'Encryption metadata (IV, auth tag, etc.)';

@@ -42,8 +42,10 @@ export function buildMPTokenIssuanceCreate(
     tx.TransferFee = params.transferFee;
   }
 
+  const jsonString = JSON.stringify(params.metadata);
+
   if (params.metadata) {
-    tx.MPTokenMetadata = convertStringToHex(params.metadata);
+    tx.MPTokenMetadata = convertStringToHex(jsonString);
   }
 
   return tx as SubmittableTransaction;

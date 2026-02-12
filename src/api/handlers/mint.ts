@@ -18,8 +18,6 @@ export interface MintRequest {
  * Creates and executes a mint operation
  */
 export async function handleMint(req: Request, pool: Pool): Promise<Response> {
-  const ISSUER_WALLET_ID = 'issuer';
-
   try {
     // 1. Parse request body
     const body: MintRequest = await req.json();
@@ -84,7 +82,7 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
         OperationType.MINT,
         body.idempotencyKey,
         null, // issuance_id is set after first step completes
-        ISSUER_WALLET_ID,
+        null, // Issuer is determined from environment variable
         body.userWalletId,
         body.amount,
         OperationStatus.PENDING
@@ -98,7 +96,7 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
         operationId,
         stepNo: 1,
         kind: 'issuer_mint',
-        walletId: ISSUER_WALLET_ID,
+        walletId: null, // Issuer is determined from environment variable
         txType: 'MPTokenIssuanceCreate'
       },
       {
@@ -114,7 +112,7 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
         operationId,
         stepNo: 3,
         kind: 'issuer_transfer',
-        walletId: ISSUER_WALLET_ID,
+        walletId: null, // Issuer is determined from environment variable
         txType: 'Payment'
       }
     ];
@@ -144,7 +142,6 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
       {
         operationId,
         issuanceId: '', // Dummy, actually retrieved in first step
-        issuerWalletId: ISSUER_WALLET_ID,
         userWalletId: body.userWalletId,
         amount: body.amount,
         assetScale: 0,

@@ -14,7 +14,6 @@ import { WalletSecretManager } from '../services/wallet-secret-manager';
 export interface BurnOperationParams {
   operationId: string;
   issuanceId: string;
-  issuerWalletId: string;
   holderWalletId: string;
   amount: string;
 }
@@ -68,11 +67,14 @@ export class BurnOperation extends BaseOperation {
    */
   private async executeIssuerClawback(step: OperationStep): Promise<void> {
     try {
-      // 1. Get issuer's secret key
-      const issuerSecret = await this.secretManager.retrieveSecret(
-        this.params.issuerWalletId
-      );
-      const issuerWallet = Wallet.fromSeed(issuerSecret);
+      // 1. Get issuer's wallet
+      const issuerSeed = process.env.ISSUER_SEED;
+
+      if (!issuerSeed) {
+        throw new Error('ISSUER_SEED is not configured in .env');
+      }
+
+      const issuerWallet = Wallet.fromSeed(issuerSeed);
 
       // 2. Get holder's address
       const holderAddress = await this.getWalletAddress(

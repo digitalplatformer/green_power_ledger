@@ -8,7 +8,6 @@ import { masterKeyFromHex } from '../../crypto/encryption';
 
 export interface BurnRequest {
   idempotencyKey: string;
-  issuerWalletId: string;
   holderWalletId: string;
   issuanceId: string;
   amount: string;
@@ -24,11 +23,11 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
     const body: BurnRequest = await req.json();
 
     // 2. Validation
-    if (!body.idempotencyKey || !body.issuerWalletId || !body.holderWalletId || !body.issuanceId || !body.amount) {
+    if (!body.idempotencyKey || !body.holderWalletId || !body.issuanceId || !body.amount) {
       return new Response(
         JSON.stringify({
           error: 'Missing required fields',
-          required: ['idempotencyKey', 'issuerWalletId', 'holderWalletId', 'issuanceId', 'amount']
+          required: ['idempotencyKey', 'holderWalletId', 'issuanceId', 'amount']
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -61,7 +60,7 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
         OperationType.BURN,
         body.idempotencyKey,
         body.issuanceId,
-        body.issuerWalletId,
+        null, // Issuer is determined from environment variable
         body.holderWalletId,
         body.amount,
         OperationStatus.PENDING
@@ -74,7 +73,6 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
       operationId,
       stepNo: 1,
       kind: 'issuer_clawback',
-      walletId: body.issuerWalletId,
       txType: 'Clawback'
     };
 
@@ -87,7 +85,7 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
         step.operationId,
         step.stepNo,
         step.kind,
-        step.walletId,
+        null, // Issuer is determined from environment variable
         step.txType,
         StepStatus.PENDING
       ]
@@ -101,7 +99,6 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
       {
         operationId,
         issuanceId: body.issuanceId,
-        issuerWalletId: body.issuerWalletId,
         holderWalletId: body.holderWalletId,
         amount: body.amount
       },

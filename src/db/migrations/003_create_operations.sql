@@ -1,5 +1,5 @@
 -- 003_create_operations.sql
--- Operations テーブル: 論理的な操作単位（mint/transfer/burn）
+-- Operations table: Logical operation units (mint/transfer/burn)
 
 CREATE TYPE operation_status AS ENUM (
   'PENDING',
@@ -34,13 +34,13 @@ CREATE INDEX idx_operations_idempotency ON operations(idempotency_key);
 CREATE INDEX idx_operations_created ON operations(created_at DESC);
 CREATE INDEX idx_operations_issuance ON operations(issuance_id);
 
-COMMENT ON TABLE operations IS '論理的な操作追跡（mint/transfer/burn）';
-COMMENT ON COLUMN operations.type IS '操作タイプ: mint, transfer, burn';
-COMMENT ON COLUMN operations.idempotency_key IS '冪等性キー（一意制約）';
+COMMENT ON TABLE operations IS 'Logical operation tracking (mint/transfer/burn)';
+COMMENT ON COLUMN operations.type IS 'Operation type: mint, transfer, burn';
+COMMENT ON COLUMN operations.idempotency_key IS 'Idempotency key (unique constraint)';
 COMMENT ON COLUMN operations.issuance_id IS 'MPT Issuance ID';
-COMMENT ON COLUMN operations.from_wallet_id IS '送信元ウォレット（mint の場合は issuer、burn の場合は holder）';
-COMMENT ON COLUMN operations.to_wallet_id IS '送信先ウォレット（mint/transfer の場合）';
-COMMENT ON COLUMN operations.amount IS '操作対象の MPT 量（128ビット精度）';
-COMMENT ON COLUMN operations.status IS '操作ステータス';
-COMMENT ON COLUMN operations.error_code IS 'エラーコード（失敗時）';
-COMMENT ON COLUMN operations.error_message IS 'エラーメッセージ（失敗時）';
+COMMENT ON COLUMN operations.from_wallet_id IS 'Source wallet (issuer for mint, holder for burn)';
+COMMENT ON COLUMN operations.to_wallet_id IS 'Destination wallet (for mint/transfer)';
+COMMENT ON COLUMN operations.amount IS 'MPT amount for operation (128-bit precision)';
+COMMENT ON COLUMN operations.status IS 'Operation status';
+COMMENT ON COLUMN operations.error_code IS 'Error code (on failure)';
+COMMENT ON COLUMN operations.error_message IS 'Error message (on failure)';
