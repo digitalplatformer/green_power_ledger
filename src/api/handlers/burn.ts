@@ -15,15 +15,15 @@ export interface BurnRequest {
 }
 
 /**
- * POST /api/operations/burn ハンドラー
- * Burn 操作を作成して実行する
+ * POST /api/operations/burn handler
+ * Creates and executes a burn operation
  */
 export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
   try {
-    // 1. リクエストボディをパース
+    // 1. Parse request body
     const body: BurnRequest = await req.json();
 
-    // 2. バリデーション
+    // 2. Validation
     if (!body.idempotencyKey || !body.issuerWalletId || !body.holderWalletId || !body.issuanceId || !body.amount) {
       return new Response(
         JSON.stringify({
@@ -34,7 +34,7 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
       );
     }
 
-    // 3. 冪等性キーのチェック
+    // 3. Check idempotency key
     const idempotencyValidator = new IdempotencyValidator(pool);
     const existingOperation = await idempotencyValidator.getOperationByKey(body.idempotencyKey);
 
@@ -49,7 +49,7 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
       );
     }
 
-    // 4. 操作を作成
+    // 4. Create operation
     const operationId = uuidv4();
 
     await pool.query(
@@ -68,7 +68,7 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
       ]
     );
 
-    // 5. ステップを作成
+    // 5. Create step
     const step = {
       id: uuidv4(),
       operationId,
@@ -93,7 +93,7 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
       ]
     );
 
-    // 6. 操作を実行（バックグラウンドで非同期実行）
+    // 6. Execute operation (async background execution)
     const masterKey = masterKeyFromHex(process.env.ENCRYPTION_MASTER_KEY!);
     const secretManager = new WalletSecretManager(pool, masterKey);
     const burnOperation = new BurnOperation(
@@ -108,12 +108,12 @@ export async function handleBurn(req: Request, pool: Pool): Promise<Response> {
       secretManager
     );
 
-    // バックグラウンドで実行
+    // Execute in background
     burnOperation.execute().catch((error) => {
       console.error(`Burn operation ${operationId} failed:`, error);
     });
 
-    // 7. レスポンスを返す
+    // 7. Return response
     return new Response(
       JSON.stringify({
         operationId,

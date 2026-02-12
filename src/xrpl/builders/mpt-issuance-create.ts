@@ -9,19 +9,19 @@ export interface MPTIssuanceCreateParams {
   metadata?: string;
 }
 
-// CLAUDE.md 仕様: tfMPTCanTransfer と tfMPTCanClawback は必須
+// CLAUDE.md spec: tfMPTCanTransfer and tfMPTCanClawback are required
 const MPT_FLAG_CAN_TRANSFER = 32;  // 0x20
 const MPT_FLAG_CAN_CLAWBACK = 64;  // 0x40
 
 /**
- * MPTokenIssuanceCreate トランザクションを構築
- * @param params トランザクションパラメータ
- * @returns MPTokenIssuanceCreate トランザクション
+ * Build MPTokenIssuanceCreate transaction
+ * @param params Transaction parameters
+ * @returns MPTokenIssuanceCreate transaction
  */
 export function buildMPTokenIssuanceCreate(
   params: MPTIssuanceCreateParams
 ): SubmittableTransaction {
-  // CLAUDE.md 仕様: tfMPTCanTransfer と tfMPTCanClawback は必須
+  // CLAUDE.md spec: tfMPTCanTransfer and tfMPTCanClawback are required
   const flags = MPT_FLAG_CAN_TRANSFER | MPT_FLAG_CAN_CLAWBACK; // 96
 
   const tx: any = {

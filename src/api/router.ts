@@ -9,22 +9,22 @@ import {
 import { handleCreateWallet, handleGetWallet, handleFundWallet } from './handlers/wallets';
 
 /**
- * API ルーター
- * リクエストを適切なハンドラーにルーティングする
+ * API Router
+ * Routes requests to the appropriate handlers
  */
 export async function router(req: Request, pool: Pool): Promise<Response> {
   const url = new URL(req.url);
   const path = url.pathname;
   const method = req.method;
 
-  // CORS ヘッダー（必要に応じて）
+  // CORS headers (as needed)
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type'
   };
 
-  // OPTIONS リクエスト（CORS プリフライト）
+  // OPTIONS request (CORS preflight)
   if (method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -33,7 +33,7 @@ export async function router(req: Request, pool: Pool): Promise<Response> {
   }
 
   try {
-    // ルーティング
+    // Routing
     let response: Response;
 
     // POST /api/operations/mint
@@ -91,7 +91,7 @@ export async function router(req: Request, pool: Pool): Promise<Response> {
         response = await handleGetWallet(walletId, pool);
       }
     }
-    // ヘルスチェック
+    // Health check
     else if (method === 'GET' && path === '/health') {
       response = new Response(
         JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }),
@@ -106,7 +106,7 @@ export async function router(req: Request, pool: Pool): Promise<Response> {
       );
     }
 
-    // CORS ヘッダーを追加
+    // Add CORS headers
     const headers = new Headers(response.headers);
     Object.entries(corsHeaders).forEach(([key, value]) => {
       headers.set(key, value);

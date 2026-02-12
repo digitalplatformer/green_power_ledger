@@ -14,11 +14,11 @@ export interface ValidationResult {
 }
 
 /**
- * トランザクションの検証完了を待機
- * @param txHash トランザクションハッシュ
- * @param timeoutMs 全体のタイムアウト（デフォルト2分）
- * @param pollIntervalMs ポーリング間隔（デフォルト5秒）
- * @returns 検証結果
+ * Wait for transaction validation to complete
+ * @param txHash Transaction hash
+ * @param timeoutMs Overall timeout (default 2 minutes)
+ * @param pollIntervalMs Polling interval (default 5 seconds)
+ * @returns Validation result
  */
 export async function waitForValidation(
   txHash: string,
@@ -28,26 +28,26 @@ export async function waitForValidation(
   const client = xrplClient.getClient();
   const startTime = Date.now();
 
-  console.log(`トランザクション ${txHash} の検証を待機中...`);
+  console.log(`Waiting for transaction ${txHash} validation...`);
 
   while (Date.now() - startTime < timeoutMs) {
     try {
-      // トランザクションを取得
+      // Get transaction
       const txResult = await client.request({
         command: 'tx',
         transaction: txHash
       });
 
-      // validated チェック
+      // Check if validated
       if (txResult.result.validated) {
         const meta = txResult.result.meta;
 
-        // TransactionResult を確認
+        // Check TransactionResult
         if (typeof meta === 'object' && 'TransactionResult' in meta) {
           const result = meta.TransactionResult as string;
 
           if (result === 'tesSUCCESS') {
-            console.log(`✓ トランザクション ${txHash} が成功しました`);
+            console.log(`✓ Transaction ${txHash} succeeded`);
             return {
               status: ValidationStatus.SUCCESS,
               ledgerIndex: txResult.result.ledger_index,
@@ -55,7 +55,7 @@ export async function waitForValidation(
               details: txResult.result
             };
           } else {
-            console.error(`✗ トランザクション ${txHash} が失敗しました: ${result}`);
+            console.error(`✗ Transaction ${txHash} failed: ${result}`);
             return {
               status: ValidationStatus.FAILED,
               ledgerIndex: txResult.result.ledger_index,
@@ -66,18 +66,18 @@ export async function waitForValidation(
         }
       }
     } catch (error: any) {
-      // txNotFound は正常（まだ Ledger に含まれていない）
+      // txNotFound is normal (not yet included in ledger)
       if (error?.data?.error !== 'txnNotFound') {
-        console.error('トランザクション取得エラー:', error);
+        console.error('Transaction retrieval error:', error);
       }
     }
 
-    // 次のポーリングまで待機
+    // Wait until next poll
     await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
   }
 
-  // タイムアウト
-  console.warn(`⚠ トランザクション ${txHash} の検証がタイムアウトしました`);
+  // Timeout
+  console.warn(`⚠ Transaction ${txHash} validation timed out`);
   return {
     status: ValidationStatus.TIMEOUT
   };

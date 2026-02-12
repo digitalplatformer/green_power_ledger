@@ -1,16 +1,16 @@
 import { Pool } from 'pg';
 
 /**
- * 冪等性キー検証サービス
- * 同じ idempotency_key での重複操作を防ぐ
+ * Idempotency key validation service
+ * Prevents duplicate operations with the same idempotency_key
  */
 export class IdempotencyValidator {
   constructor(private pool: Pool) {}
 
   /**
-   * 冪等性キーが既に使用されているかチェック
-   * @param idempotencyKey 冪等性キー
-   * @returns true: 既に使用済み, false: 未使用
+   * Check if idempotency key is already used
+   * @param idempotencyKey Idempotency key
+   * @returns true: already used, false: not used
    */
   async isKeyUsed(idempotencyKey: string): Promise<boolean> {
     const result = await this.pool.query(
@@ -22,9 +22,9 @@ export class IdempotencyValidator {
   }
 
   /**
-   * 冪等性キーで既存の操作を検索
-   * @param idempotencyKey 冪等性キー
-   * @returns 操作ID（存在しない場合は null）
+   * Find existing operation by idempotency key
+   * @param idempotencyKey Idempotency key
+   * @returns Operation ID (null if not found)
    */
   async findOperationByKey(idempotencyKey: string): Promise<string | null> {
     const result = await this.pool.query(
@@ -40,9 +40,9 @@ export class IdempotencyValidator {
   }
 
   /**
-   * 冪等性キーの使用状態と操作の詳細を取得
-   * @param idempotencyKey 冪等性キー
-   * @returns 操作情報（存在しない場合は null）
+   * Get idempotency key usage status and operation details
+   * @param idempotencyKey Idempotency key
+   * @returns Operation info (null if not found)
    */
   async getOperationByKey(idempotencyKey: string): Promise<any | null> {
     const result = await this.pool.query(
@@ -61,9 +61,9 @@ export class IdempotencyValidator {
   }
 
   /**
-   * 冪等性キーを検証し、重複の場合は既存の操作IDを返す
-   * @param idempotencyKey 冪等性キー
-   * @throws Error 冪等性キーが既に使用されている場合
+   * Validate idempotency key; returns existing operation ID if duplicate
+   * @param idempotencyKey Idempotency key
+   * @throws Error if idempotency key is already used
    */
   async validateKey(idempotencyKey: string): Promise<void> {
     const isUsed = await this.isKeyUsed(idempotencyKey);

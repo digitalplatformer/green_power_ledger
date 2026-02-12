@@ -20,8 +20,8 @@ export interface BurnOperationParams {
 }
 
 /**
- * Burn 操作（1ステップ）
- * 1. Issuer が holder から clawback（Clawback）
+ * Burn operation (1 step)
+ * 1. Issuer clawbacks from holder (Clawback)
  */
 export class BurnOperation extends BaseOperation {
   constructor(
@@ -64,22 +64,22 @@ export class BurnOperation extends BaseOperation {
   }
 
   /**
-   * ステップ1: Issuer が holder から clawback
+   * Step 1: Issuer clawbacks from holder
    */
   private async executeIssuerClawback(step: OperationStep): Promise<void> {
     try {
-      // 1. Issuer の秘密鍵を取得
+      // 1. Get issuer's secret key
       const issuerSecret = await this.secretManager.retrieveSecret(
         this.params.issuerWalletId
       );
       const issuerWallet = Wallet.fromSeed(issuerSecret);
 
-      // 2. Holder のアドレスを取得
+      // 2. Get holder's address
       const holderAddress = await this.getWalletAddress(
         this.params.holderWalletId
       );
 
-      // 3. Clawback トランザクションを構築
+      // 3. Build Clawback transaction
       const tx = buildMPTClawback({
         account: issuerWallet.address,
         holder: holderAddress,
@@ -88,27 +88,27 @@ export class BurnOperation extends BaseOperation {
       });
 
       console.log(
-        `  → Issuer が Holder から MPT を clawback します: ${this.params.amount}`
+        `  → Issuer clawing back MPT from Holder: ${this.params.amount}`
       );
 
-      // 4. トランザクションを送信
+      // 4. Submit transaction
       const submitResult: SubmitResult = await submitTransaction(
         tx,
         issuerWallet
       );
 
-      // 5. ステップを SUBMITTED に更新
+      // 5. Update step to SUBMITTED
       await this.updateStepStatus(step.id!, StepStatus.SUBMITTED, {
         txHash: submitResult.txHash,
         submitResult: submitResult.submitResult
       });
 
-      console.log(`  → トランザクション送信: ${submitResult.txHash}`);
+      console.log(`  → Transaction submitted: ${submitResult.txHash}`);
 
-      // 6. 検証を待機
+      // 6. Wait for validation
       const validationResult = await waitForValidation(submitResult.txHash);
 
-      // 7. 検証結果に基づいてステップを更新
+      // 7. Update step based on validation result
       if (validationResult.status === ValidationStatus.SUCCESS) {
         await this.updateStepStatus(step.id!, StepStatus.VALIDATED_SUCCESS, {
           validatedResult: validationResult.details
@@ -125,14 +125,14 @@ export class BurnOperation extends BaseOperation {
         throw new Error('Transaction validation timeout');
       }
     } catch (error: any) {
-      console.error(`  ✗ ステップ1エラー:`, error);
+      console.error(`  ✗ Step 1 error:`, error);
       await this.updateStepStatus(step.id!, StepStatus.VALIDATED_FAILED);
       throw error;
     }
   }
 
   /**
-   * ウォレットのアドレスを取得
+   * Get wallet address
    */
   private async getWalletAddress(walletId: string): Promise<string> {
     const result = await this.pool.query(

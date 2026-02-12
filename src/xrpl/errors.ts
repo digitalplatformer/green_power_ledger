@@ -1,10 +1,10 @@
 export enum XrplErrorCode {
-  // リトライ可能なエラー
+  // Retriable errors
   NETWORK_ERROR = 'NETWORK_ERROR',
   TIMEOUT = 'TIMEOUT',
   TEF_PAST_SEQ = 'tefPAST_SEQ',
 
-  // 永続的なエラー
+  // Permanent errors
   TEC_UNFUNDED = 'tecUNFUNDED_PAYMENT',
   TEM_INVALID = 'temINVALID',
   TEF_FAILURE = 'tefFAILURE',
@@ -12,12 +12,12 @@ export enum XrplErrorCode {
   TEC_NO_AUTH = 'tecNO_AUTH',
   TEC_NO_LINE = 'tecNO_LINE',
 
-  // 汎用エラー
+  // Generic error
   UNKNOWN = 'UNKNOWN'
 }
 
 /**
- * XRPL 固有のエラークラス
+ * XRPL-specific error class
  */
 export class XrplError extends Error {
   constructor(
@@ -28,14 +28,14 @@ export class XrplError extends Error {
     super(message);
     this.name = 'XrplError';
 
-    // スタックトレースを保持
+    // Preserve stack trace
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, XrplError);
     }
   }
 
   /**
-   * エラーがリトライ可能かどうかを判定
+   * Determine if error is retriable
    */
   isRetriable(): boolean {
     return [
@@ -46,7 +46,7 @@ export class XrplError extends Error {
   }
 
   /**
-   * エラーの重要度を取得
+   * Get error severity
    */
   getSeverity(): 'low' | 'medium' | 'high' | 'critical' {
     switch (this.code) {
@@ -71,7 +71,7 @@ export class XrplError extends Error {
   }
 
   /**
-   * エラーを JSON にシリアライズ
+   * Serialize error to JSON
    */
   toJSON() {
     return {
@@ -86,12 +86,12 @@ export class XrplError extends Error {
 }
 
 /**
- * XRPL エラーレスポンスをパースしてカスタム例外に変換
- * @param error XRPL からのエラーオブジェクト
- * @returns XrplError インスタンス
+ * Parse XRPL error response and convert to custom exception
+ * @param error Error object from XRPL
+ * @returns XrplError instance
  */
 export function parseXrplError(error: any): XrplError {
-  // ネットワークエラー
+  // Network error
   if (error.message && error.message.includes('WebSocket')) {
     return new XrplError(
       XrplErrorCode.NETWORK_ERROR,
@@ -100,7 +100,7 @@ export function parseXrplError(error: any): XrplError {
     );
   }
 
-  // txnNotFound（タイムアウト）
+  // txnNotFound (timeout)
   if (error.data?.error === 'txnNotFound') {
     return new XrplError(
       XrplErrorCode.TIMEOUT,
@@ -109,11 +109,11 @@ export function parseXrplError(error: any): XrplError {
     );
   }
 
-  // XRPL トランザクションエラーコード
+  // XRPL transaction error code
   if (error.data?.error) {
     const errorCode = error.data.error;
 
-    // エラーコードをマッピング
+    // Map error code
     const codeMapping: Record<string, XrplErrorCode> = {
       'tefPAST_SEQ': XrplErrorCode.TEF_PAST_SEQ,
       'tecUNFUNDED_PAYMENT': XrplErrorCode.TEC_UNFUNDED,
@@ -133,7 +133,7 @@ export function parseXrplError(error: any): XrplError {
     );
   }
 
-  // トランザクション結果のエラー
+  // Transaction result error
   if (error.result && typeof error.result === 'string') {
     const result = error.result;
 
@@ -162,7 +162,7 @@ export function parseXrplError(error: any): XrplError {
     }
   }
 
-  // その他の不明なエラー
+  // Other unknown errors
   return new XrplError(
     XrplErrorCode.UNKNOWN,
     error.message || 'Unknown XRPL error',
@@ -171,37 +171,37 @@ export function parseXrplError(error: any): XrplError {
 }
 
 /**
- * エラーメッセージをユーザーフレンドリーな形式に変換
- * @param error XrplError インスタンス
- * @returns ユーザーフレンドリーなエラーメッセージ
+ * Convert error message to user-friendly format
+ * @param error XrplError instance
+ * @returns User-friendly error message
  */
 export function getErrorMessage(error: XrplError): string {
   switch (error.code) {
     case XrplErrorCode.NETWORK_ERROR:
-      return 'XRPLネットワークへの接続に失敗しました。ネットワーク接続を確認してください。';
+      return 'Failed to connect to XRPL network. Please check your network connection.';
 
     case XrplErrorCode.TIMEOUT:
-      return 'トランザクションの検証がタイムアウトしました。後ほど再試行してください。';
+      return 'Transaction validation timed out. Please try again later.';
 
     case XrplErrorCode.TEF_PAST_SEQ:
-      return 'トランザクションシーケンスが古すぎます。再試行してください。';
+      return 'Transaction sequence is too old. Please retry.';
 
     case XrplErrorCode.TEC_UNFUNDED:
-      return 'アカウントの残高が不足しています。XRPを追加してください。';
+      return 'Insufficient account balance. Please add XRP.';
 
     case XrplErrorCode.TEM_INVALID:
-      return 'トランザクションが無効です。パラメータを確認してください。';
+      return 'Invalid transaction. Please check the parameters.';
 
     case XrplErrorCode.TEF_FAILURE:
-      return 'トランザクションの実行に失敗しました。';
+      return 'Transaction execution failed.';
 
     case XrplErrorCode.TEC_NO_AUTH:
-      return 'MPTの承認が必要です。先に MPTokenAuthorize を実行してください。';
+      return 'MPT authorization required. Please execute MPTokenAuthorize first.';
 
     case XrplErrorCode.TEC_NO_LINE:
-      return 'トラストラインが存在しません。';
+      return 'Trust line does not exist.';
 
     default:
-      return `XRPL エラーが発生しました: ${error.message}`;
+      return `XRPL error occurred: ${error.message}`;
   }
 }

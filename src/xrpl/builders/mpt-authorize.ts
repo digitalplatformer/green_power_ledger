@@ -1,15 +1,15 @@
 import type { SubmittableTransaction } from 'xrpl';
 
 export interface MPTAuthorizeParams {
-  account: string;        // 受信者アカウント
+  account: string;        // Receiver account
   mptIssuanceId: string;  // MPT Issuance ID
 }
 
 /**
- * MPTokenAuthorize トランザクションを構築
- * 受信者が MPT を受け取るために実行する
- * @param params トランザクションパラメータ
- * @returns MPTokenAuthorize トランザクション
+ * Build MPTokenAuthorize transaction
+ * Executed by receiver to accept MPT
+ * @param params Transaction parameters
+ * @returns MPTokenAuthorize transaction
  */
 export function buildMPTokenAuthorize(
   params: MPTAuthorizeParams

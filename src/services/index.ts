@@ -1,4 +1,4 @@
-// サービスのエクスポート
+// Services export
 export { WalletSecretManager } from './wallet-secret-manager';
 export { WalletManager, WalletInfo, CreateWalletParams } from './wallet-manager';
 export { IdempotencyValidator } from './idempotency-validator';

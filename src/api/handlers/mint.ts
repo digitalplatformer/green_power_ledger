@@ -14,17 +14,17 @@ export interface MintRequest {
 }
 
 /**
- * POST /api/operations/mint ハンドラー
- * Mint 操作を作成して実行する
+ * POST /api/operations/mint handler
+ * Creates and executes a mint operation
  */
 export async function handleMint(req: Request, pool: Pool): Promise<Response> {
   const ISSUER_WALLET_ID = 'issuer';
 
   try {
-    // 1. リクエストボディをパース
+    // 1. Parse request body
     const body: MintRequest = await req.json();
 
-    // 2. バリデーション - 必須フィールドのチェック
+    // 2. Validation - check required fields
     if (!body.idempotencyKey || !body.userWalletId || !body.amount) {
       return new Response(
         JSON.stringify({
@@ -35,7 +35,7 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
       );
     }
 
-    // 非推奨フィールドの拒否
+    // Reject deprecated fields
     const deprecatedFields = ['issuerWalletId', 'assetScale', 'maximumAmount', 'transferFee'];
     const providedDeprecated = deprecatedFields.filter(field => (body as any)[field] !== undefined);
     if (providedDeprecated.length > 0) {
@@ -55,12 +55,12 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
       );
     }
 
-    // 3. 冪等性キーのチェック
+    // 3. Check idempotency key
     const idempotencyValidator = new IdempotencyValidator(pool);
     const existingOperation = await idempotencyValidator.getOperationByKey(body.idempotencyKey);
 
     if (existingOperation) {
-      // すでに存在する操作を返す
+      // Return already existing operation
       return new Response(
         JSON.stringify({
           operationId: existingOperation.id,
@@ -72,7 +72,7 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
       );
     }
 
-    // 4. 操作を作成
+    // 4. Create operation
     const operationId = uuidv4();
 
     await pool.query(
@@ -83,7 +83,7 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
         operationId,
         OperationType.MINT,
         body.idempotencyKey,
-        null, // issuance_id は最初のステップ完了後に設定
+        null, // issuance_id is set after first step completes
         ISSUER_WALLET_ID,
         body.userWalletId,
         body.amount,
@@ -91,7 +91,7 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
       ]
     );
 
-    // 5. ステップを作成
+    // 5. Create steps
     const steps = [
       {
         id: uuidv4(),
@@ -136,14 +136,14 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
       );
     }
 
-    // 6. 操作を実行（バックグラウンドで非同期実行）
+    // 6. Execute operation (async background execution)
     const masterKey = masterKeyFromHex(process.env.ENCRYPTION_MASTER_KEY!);
     const secretManager = new WalletSecretManager(pool, masterKey);
     const mintOperation = new MintOperation(
       pool,
       {
         operationId,
-        issuanceId: '', // ダミー、実際には最初のステップで取得
+        issuanceId: '', // Dummy, actually retrieved in first step
         issuerWalletId: ISSUER_WALLET_ID,
         userWalletId: body.userWalletId,
         amount: body.amount,
@@ -155,12 +155,12 @@ export async function handleMint(req: Request, pool: Pool): Promise<Response> {
       secretManager
     );
 
-    // バックグラウンドで実行
+    // Execute in background
     mintOperation.execute().catch((error) => {
       console.error(`Mint operation ${operationId} failed:`, error);
     });
 
-    // 7. レスポンスを返す
+    // 7. Return response
     return new Response(
       JSON.stringify({
         operationId,
