@@ -37,10 +37,10 @@ By converting time-matched renewable generation into a programmable RWA, GRPL es
 
 Renewable energy already represents a massive and growing market.
 
-- **Japan** generates approximately **2,300 TWh** (2.3 trillion kWh) of renewable electricity annually.  
+- **Japan** generates approximately **230 TWh** of renewable electricity annually.
   At an average price of around **¥25 per kWh**, this corresponds to an annual market size of roughly:
 
-  $$2.3 \times 10^{12} \text{ kWh} \times 25 \text{ yen} \approx 57.5 \text{ trillion yen}$$
+  $$230 \times 10^{9} \text{ kWh} \times 25 \text{ yen} \approx 5.75 \text{ trillion yen}$$
 
 - **Globally**, renewable generation exceeds **10,000 TWh** per year, representing a multi-trillion-dollar energy market.
 
