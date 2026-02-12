@@ -1,16 +1,16 @@
 import type { SubmittableTransaction } from 'xrpl';
 
 export interface MPTPaymentParams {
-  account: string;        // 送信者
-  destination: string;    // 受信者
+  account: string;        // Sender
+  destination: string;    // Receiver
   mptIssuanceId: string;  // MPT Issuance ID
-  amount: string;         // 送信量（文字列）
+  amount: string;         // Amount to send (string)
 }
 
 /**
- * MPT を含む Payment トランザクションを構築
- * @param params トランザクションパラメータ
- * @returns Payment トランザクション
+ * Build Payment transaction containing MPT
+ * @param params Transaction parameters
+ * @returns Payment transaction
  */
 export function buildMPTPayment(
   params: MPTPaymentParams

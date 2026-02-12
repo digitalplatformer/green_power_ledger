@@ -11,8 +11,8 @@ export interface WalletInfo {
 }
 
 /**
- * ウォレット管理サービス
- * ウォレットの作成、取得、登録を管理
+ * Wallet management service
+ * Manages wallet creation, retrieval, and registration
  */
 export class WalletManager {
   constructor(
@@ -21,33 +21,33 @@ export class WalletManager {
   ) {}
 
   /**
-   * 新しい user ウォレットを作成し、秘密鍵を暗号化して保存
-   * @param seed 任意: 既存のシードを使用する場合
-   * @returns ウォレット情報
+   * Create a new user wallet and store encrypted secret key
+   * @param seed Optional: used when importing an existing seed
+   * @returns Wallet info
    */
   async createUserWallet(seed?: string): Promise<WalletInfo> {
-    // 1. XRPL ウォレットを生成または既存のシードから復元
+    // 1. Generate XRPL wallet or restore from existing seed
     const wallet = seed
       ? Wallet.fromSeed(seed)
       : Wallet.generate();
 
-    // 2. ウォレットIDを生成
+    // 2. Generate wallet ID
     const walletId = uuidv4();
 
-    // 3. 秘密鍵を暗号化（WalletSecretManager の encrypt ロジックを使用）
+    // 3. Encrypt secret key (using WalletSecretManager's encrypt logic)
     const { encrypt } = await import('../crypto/encryption');
     const encrypted = await encrypt(
       wallet.seed!,
       this.secretManager['masterKey']
     );
 
-    // 4. 暗号化コンテキスト（IV, authTag）を JSON に変換
+    // 4. Convert encryption context (IV, authTag) to JSON
     const encryptionContext = {
       iv: encrypted.iv.toString('hex'),
       authTag: encrypted.authTag.toString('hex')
     };
 
-    // 5. ウォレット情報と暗号化された秘密鍵をDBに一括保存
+    // 5. Save wallet info and encrypted secret key to DB
     await this.pool.query(
       `INSERT INTO wallets (id, xrpl_address, encrypted_secret, encryption_context, created_at, updated_at)
        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
@@ -60,7 +60,7 @@ export class WalletManager {
     );
 
     console.log(
-      `✓ ウォレット作成成功: ${wallet.address} (ID: ${walletId})`
+      `✓ Wallet created successfully: ${wallet.address} (ID: ${walletId})`
     );
 
     return {
@@ -72,9 +72,9 @@ export class WalletManager {
   }
 
   /**
-   * .env から issuer ウォレット情報を取得（virtual wallet として扱う）
-   * issuer wallet は DB に保存せず、常に .env から復元する
-   * @returns issuer ウォレット情報（virtual）
+   * Get issuer wallet info from .env (treated as virtual wallet)
+   * Issuer wallet is not stored in DB, always restored from .env
+   * @returns Issuer wallet info (virtual)
    */
   async ensureIssuerWallet(): Promise<WalletInfo> {
     const issuerSeed = process.env.ISSUER_SEED;
@@ -83,11 +83,11 @@ export class WalletManager {
       throw new Error('ISSUER_SEED is not configured in .env');
     }
 
-    // .env から issuer wallet を復元（DB には保存しない）
+    // Restore issuer wallet from .env (not saved to DB)
     const wallet = Wallet.fromSeed(issuerSeed);
 
     return {
-      id: 'issuer', // 特別な定数 ID
+      id: 'issuer', // Special constant ID
       xrplAddress: wallet.address,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -95,25 +95,25 @@ export class WalletManager {
   }
 
   /**
-   * Issuer ウォレットを取得
-   * @returns issuer ウォレット情報
+   * Get issuer wallet
+   * @returns Issuer wallet info
    */
   async getIssuerWallet(): Promise<WalletInfo> {
     return this.ensureIssuerWallet();
   }
 
   /**
-   * ウォレットIDからウォレット情報を取得
-   * @param walletId ウォレットID（'issuer' の場合は virtual wallet を返す）
-   * @returns ウォレット情報
+   * Get wallet info by wallet ID
+   * @param walletId Wallet ID (returns virtual wallet if 'issuer')
+   * @returns Wallet info
    */
   async getWallet(walletId: string): Promise<WalletInfo | null> {
-    // 特別な 'issuer' ID の処理
+    // Handle special 'issuer' ID
     if (walletId === 'issuer') {
       return this.getIssuerWallet();
     }
 
-    // 通常の user wallet の DB 検索
+    // DB search for regular user wallet
     const result = await this.pool.query(
       `SELECT id, xrpl_address, created_at, updated_at
        FROM wallets
@@ -135,9 +135,9 @@ export class WalletManager {
   }
 
   /**
-   * すべての user ウォレットを取得（デバッグ・管理用）
-   * 注意: issuer wallet は含まれません（DB に保存されていないため）
-   * @returns ウォレット情報の配列
+   * Get all user wallets (for debugging/management)
+   * Note: issuer wallet is not included (not stored in DB)
+   * @returns Array of wallet info
    */
   async listWallets(): Promise<WalletInfo[]> {
     const result = await this.pool.query(
@@ -155,10 +155,10 @@ export class WalletManager {
   }
 
   /**
-   * User wallet に faucet から XRP を追加
-   * テストネット/デブネット専用（本番環境では使用不可）
-   * @param walletId ウォレットID
-   * @returns 資金供給結果（残高情報）
+   * Add XRP to user wallet from faucet
+   * Testnet/devnet only (not available in production)
+   * @param walletId Wallet ID
+   * @returns Funding result (balance info)
    */
   async addFund(walletId: string): Promise<{
     walletId: string;
@@ -167,31 +167,31 @@ export class WalletManager {
     balanceAfter: number;
     amountFunded: string;
   }> {
-    // 1. Issuer wallet への funding は拒否
+    // 1. Reject funding to issuer wallet
     if (walletId === 'issuer') {
       throw new Error('Cannot fund issuer wallet. Issuer is managed via .env');
     }
 
-    // 2. Wallet 情報を取得
+    // 2. Get wallet info
     const wallet = await this.getWallet(walletId);
     if (!wallet) {
       throw new Error(`Wallet not found: ${walletId}`);
     }
 
-    // 3. 秘密鍵を取得して XRPL Wallet オブジェクトを復元
+    // 3. Get secret key and restore XRPL Wallet object
     const secret = await this.secretManager.retrieveSecret(walletId);
     const xrplWallet = Wallet.fromSeed(secret);
 
-    // 4. XRPL Client を取得
+    // 4. Get XRPL Client
     const { xrplClient } = await import('../xrpl/client');
     const client = xrplClient.getClient();
 
-    // 5. 資金供給前の残高を取得（アカウントが存在しない場合は0）
+    // 5. Get balance before funding (0 if account doesn't exist)
     let balanceBefore = 0;
     try {
       balanceBefore = await client.getXrpBalance(wallet.xrplAddress);
     } catch (error: any) {
-      // アカウントが存在しない場合（初回資金供給）は残高0として扱う
+      // Treat balance as 0 if account doesn't exist (first-time funding)
       if (error.data?.error === 'actNotFound') {
         balanceBefore = 0;
       } else {
@@ -199,12 +199,12 @@ export class WalletManager {
       }
     }
 
-    // 6. Faucet から資金供給（固定 1000 XRP）
+    // 6. Fund from faucet (fixed 1000 XRP)
     await client.fundWallet(xrplWallet, {
       amount: '1000'
     });
 
-    // 7. 資金供給後の残高を取得
+    // 7. Get balance after funding
     const balanceAfter = await client.getXrpBalance(wallet.xrplAddress);
 
     console.log(

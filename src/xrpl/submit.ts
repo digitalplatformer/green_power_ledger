@@ -9,10 +9,10 @@ export interface SubmitResult {
 }
 
 /**
- * XRPL へトランザクションを送信
- * @param transaction トランザクションオブジェクト
- * @param wallet 署名用ウォレット
- * @returns 送信結果（tx_hash, ledger_index）
+ * Submit transaction to XRPL
+ * @param transaction Transaction object
+ * @param wallet Wallet for signing
+ * @returns Submit result (tx_hash, ledger_index)
  */
 export async function submitTransaction(
   transaction: SubmittableTransaction,
@@ -21,19 +21,19 @@ export async function submitTransaction(
   const client = xrplClient.getClient();
 
   try {
-    // autofill でトランザクションを準備（Fee, Sequence など）
+    // Prepare transaction with autofill (Fee, Sequence, etc.)
     const prepared = await client.autofill(transaction);
 
-    // 署名
+    // Sign
     const signed = wallet.sign(prepared);
 
-    // 送信
+    // Submit
     const result = await client.submit(signed.tx_blob);
 
-    // tx_hash を抽出
+    // Extract tx_hash
     const txHash = result.result.tx_json.hash || signed.hash;
 
-    console.log(`✓ トランザクション送信成功: ${txHash}`);
+    console.log(`✓ Transaction submitted successfully: ${txHash}`);
 
     return {
       txHash,
@@ -41,11 +41,11 @@ export async function submitTransaction(
       submitResult: result
     };
   } catch (error: any) {
-    console.error('✗ トランザクション送信失敗:', error);
+    console.error('✗ Transaction submission failed:', error);
 
-    // エラーの詳細をログ出力
+    // Log error details
     if (error.data) {
-      console.error('エラーデータ:', JSON.stringify(error.data, null, 2));
+      console.error('Error data:', JSON.stringify(error.data, null, 2));
     }
 
     throw error;

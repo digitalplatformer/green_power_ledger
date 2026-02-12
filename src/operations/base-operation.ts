@@ -39,8 +39,8 @@ export interface OperationStep {
 }
 
 /**
- * すべての操作の基底クラス
- * mint/transfer/burn 操作は BaseOperation を継承して実装する
+ * Base class for all operations
+ * mint/transfer/burn operations inherit from BaseOperation
  */
 export abstract class BaseOperation {
   constructor(
@@ -50,47 +50,47 @@ export abstract class BaseOperation {
   ) {}
 
   /**
-   * 操作のステップを取得
-   * @returns ステップ配列
+   * Get operation steps
+   * @returns Array of steps
    */
   abstract getSteps(): Promise<OperationStep[]>;
 
   /**
-   * 個別のステップを実行
-   * @param step 実行するステップ
+   * Execute individual step
+   * @param step Step to execute
    */
   abstract executeStep(step: OperationStep): Promise<void>;
 
   /**
-   * 操作全体を実行
-   * すでに完了しているステップはスキップし、未完了のステップから再開する
+   * Execute entire operation
+   * Skips already completed steps and resumes from incomplete steps
    */
   async execute(): Promise<void> {
-    // 1. 操作ステータスを IN_PROGRESS に更新
+    // 1. Update operation status to IN_PROGRESS
     await this.updateOperationStatus(OperationStatus.IN_PROGRESS);
 
-    // 2. すべてのステップを取得
+    // 2. Get all steps
     const steps = await this.getSteps();
 
-    // 3. 各ステップを順番に実行
+    // 3. Execute each step in order
     for (const step of steps) {
       if (step.status === StepStatus.VALIDATED_SUCCESS) {
-        console.log(`✓ ステップ ${step.stepNo} はすでに完了しています。スキップします。`);
-        continue; // すでに完了しているステップはスキップ
+        console.log(`✓ Step ${step.stepNo} is already completed. Skipping.`);
+        continue; // Skip already completed steps
       }
 
-      console.log(`→ ステップ ${step.stepNo} を実行中: ${step.kind}`);
+      console.log(`→ Executing step ${step.stepNo}: ${step.kind}`);
       await this.executeStep(step);
 
-      // ステップの最新状態を取得
+      // Get latest state of step
       const updatedStep = await this.getStepById(step.id!);
 
-      // ステップが失敗した場合は操作を失敗としてマーク
+      // Mark operation as failed if step failed
       if (
         updatedStep.status === StepStatus.VALIDATED_FAILED ||
         updatedStep.status === StepStatus.TIMEOUT
       ) {
-        console.error(`✗ ステップ ${step.stepNo} が失敗しました`);
+        console.error(`✗ Step ${step.stepNo} failed`);
         await this.updateOperationStatus(
           OperationStatus.FAILED,
           `Step ${step.stepNo} failed: ${updatedStep.status}`
@@ -98,18 +98,18 @@ export abstract class BaseOperation {
         return;
       }
 
-      console.log(`✓ ステップ ${step.stepNo} が成功しました`);
+      console.log(`✓ Step ${step.stepNo} succeeded`);
     }
 
-    // 4. すべてのステップが成功した場合
-    console.log(`✓ すべてのステップが成功しました。操作を完了します。`);
+    // 4. If all steps succeeded
+    console.log(`✓ All steps succeeded. Completing operation.`);
     await this.updateOperationStatus(OperationStatus.SUCCESS);
   }
 
   /**
-   * 操作のステータスを更新
-   * @param status 新しいステータス
-   * @param errorMessage エラーメッセージ（任意）
+   * Update operation status
+   * @param status New status
+   * @param errorMessage Error message (optional)
    */
   protected async updateOperationStatus(
     status: OperationStatus,
@@ -126,10 +126,10 @@ export abstract class BaseOperation {
   }
 
   /**
-   * ステップのステータスと結果を更新
-   * @param stepId ステップID
-   * @param status 新しいステータス
-   * @param updates 更新するフィールド
+   * Update step status and results
+   * @param stepId Step ID
+   * @param status New status
+   * @param updates Fields to update
    */
   protected async updateStepStatus(
     stepId: string,
@@ -171,9 +171,9 @@ export abstract class BaseOperation {
   }
 
   /**
-   * ステップIDからステップを取得
-   * @param stepId ステップID
-   * @returns ステップ
+   * Get step by step ID
+   * @param stepId Step ID
+   * @returns Step
    */
   private async getStepById(stepId: string): Promise<OperationStep> {
     const result = await this.pool.query(

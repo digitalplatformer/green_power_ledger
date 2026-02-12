@@ -9,8 +9,8 @@ const NETWORK_URLS: Record<XrplNetwork, string> = {
 };
 
 /**
- * XRPL クライアントラッパー
- * testnet/devnet への接続を管理し、接続プール/再利用を提供
+ * XRPL client wrapper
+ * Manages connections to testnet/devnet and provides connection pooling/reuse
  */
 export class XrplClientWrapper {
   private client: Client;
@@ -23,7 +23,7 @@ export class XrplClientWrapper {
   }
 
   /**
-   * XRPL ネットワークに接続
+   * Connect to XRPL network
    */
   async connect(): Promise<void> {
     if (this.connected) {
@@ -33,15 +33,15 @@ export class XrplClientWrapper {
     try {
       await this.client.connect();
       this.connected = true;
-      console.log(`✓ XRPL ${this.network} に接続しました`);
+      console.log(`✓ Connected to XRPL ${this.network}`);
     } catch (error) {
-      console.error(`✗ XRPL ${this.network} への接続に失敗しました:`, error);
+      console.error(`✗ Failed to connect to XRPL ${this.network}:`, error);
       throw error;
     }
   }
 
   /**
-   * XRPL ネットワークから切断
+   * Disconnect from XRPL network
    */
   async disconnect(): Promise<void> {
     if (!this.connected) {
@@ -51,23 +51,23 @@ export class XrplClientWrapper {
     try {
       await this.client.disconnect();
       this.connected = false;
-      console.log(`✓ XRPL ${this.network} から切断しました`);
+      console.log(`✓ Disconnected from XRPL ${this.network}`);
     } catch (error) {
-      console.error(`✗ XRPL ${this.network} からの切断に失敗しました:`, error);
+      console.error(`✗ Failed to disconnect from XRPL ${this.network}:`, error);
       throw error;
     }
   }
 
   /**
-   * 接続状態を確認
+   * Check connection status
    */
   isConnected(): boolean {
     return this.connected && this.client.isConnected();
   }
 
   /**
-   * XRPL クライアントを取得
-   * @throws 接続されていない場合はエラー
+   * Get XRPL client
+   * @throws Error if not connected
    */
   getClient(): Client {
     if (!this.connected) {
@@ -77,35 +77,35 @@ export class XrplClientWrapper {
   }
 
   /**
-   * ネットワーク名を取得
+   * Get network name
    */
   getNetwork(): XrplNetwork {
     return this.network;
   }
 
   /**
-   * 接続を再試行
+   * Retry connection
    */
   async reconnect(): Promise<void> {
-    console.log(`XRPL ${this.network} への再接続を試みています...`);
+    console.log(`Attempting to reconnect to XRPL ${this.network}...`);
     await this.disconnect();
     await this.connect();
   }
 }
 
-// シングルトンインスタンス
+// Singleton instance
 const network = (process.env.XRPL_NETWORK as XrplNetwork) || 'testnet';
 export const xrplClient = new XrplClientWrapper(network);
 
 /**
- * アプリケーション起動時に XRPL クライアントを初期化
+ * Initialize XRPL client on application startup
  */
 export async function initializeXrplClient(): Promise<void> {
   await xrplClient.connect();
 }
 
 /**
- * アプリケーション終了時に XRPL クライアントをクリーンアップ
+ * Cleanup XRPL client on application shutdown
  */
 export async function cleanupXrplClient(): Promise<void> {
   await xrplClient.disconnect();

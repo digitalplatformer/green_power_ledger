@@ -57,10 +57,10 @@ async function applyMigration(migration: Migration): Promise<void> {
   await pool.query('BEGIN');
 
   try {
-    // マイグレーションSQLを実行
+    // Execute migration SQL
     await pool.query(migration.sql);
 
-    // マイグレーション記録を保存
+    // Save migration record
     await pool.query(
       'INSERT INTO schema_migrations (id, filename) VALUES ($1, $2)',
       [migration.id, migration.filename]
@@ -78,16 +78,16 @@ async function applyMigration(migration: Migration): Promise<void> {
 async function runMigrations(): Promise<void> {
   console.log('Starting database migrations...\n');
 
-  // マイグレーションテーブルを作成
+  // Create migrations table
   await createMigrationsTable();
 
-  // すでに適用されたマイグレーションを取得
+  // Get already applied migrations
   const appliedMigrations = await getAppliedMigrations();
 
-  // マイグレーションファイルを読み込み
+  // Load migration files
   const migrations = await loadMigrations();
 
-  // 未適用のマイグレーションを実行
+  // Execute unapplied migrations
   let appliedCount = 0;
   for (const migration of migrations) {
     if (!appliedMigrations.has(migration.id)) {

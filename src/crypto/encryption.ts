@@ -12,10 +12,10 @@ export interface EncryptionResult {
 }
 
 /**
- * AES-256-GCM で平文を暗号化する
- * @param plaintext 暗号化する平文
- * @param masterKey 32バイトのマスター鍵
- * @returns 暗号化結果（ciphertext, iv, authTag）
+ * Encrypts plaintext using AES-256-GCM
+ * @param plaintext The plaintext to encrypt
+ * @param masterKey 32-byte master key
+ * @returns Encryption result (ciphertext, iv, authTag)
  */
 export async function encrypt(
   plaintext: string,
@@ -25,19 +25,19 @@ export async function encrypt(
     throw new Error(`Master key must be ${KEY_LENGTH} bytes`);
   }
 
-  // ランダムな初期化ベクトル（IV）を生成
+  // Generate random initialization vector (IV)
   const iv = randomBytes(IV_LENGTH);
 
-  // 暗号化オブジェクトを作成
+  // Create cipher object
   const cipher = createCipheriv(ALGORITHM, masterKey, iv);
 
-  // 暗号化を実行
+  // Execute encryption
   const encrypted = Buffer.concat([
     cipher.update(plaintext, 'utf8'),
     cipher.final()
   ]);
 
-  // 認証タグを取得
+  // Get authentication tag
   const authTag = cipher.getAuthTag();
 
   return {
@@ -48,10 +48,10 @@ export async function encrypt(
 }
 
 /**
- * AES-256-GCM で暗号文を復号化する
- * @param encrypted 暗号化結果
- * @param masterKey 32バイトのマスター鍵
- * @returns 復号化された平文
+ * Decrypts ciphertext using AES-256-GCM
+ * @param encrypted Encryption result
+ * @param masterKey 32-byte master key
+ * @returns Decrypted plaintext
  */
 export async function decrypt(
   encrypted: EncryptionResult,
@@ -61,13 +61,13 @@ export async function decrypt(
     throw new Error(`Master key must be ${KEY_LENGTH} bytes`);
   }
 
-  // 復号化オブジェクトを作成
+  // Create decipher object
   const decipher = createDecipheriv(ALGORITHM, masterKey, encrypted.iv);
 
-  // 認証タグを設定
+  // Set authentication tag
   decipher.setAuthTag(encrypted.authTag);
 
-  // 復号化を実行
+  // Execute decryption
   const decrypted = Buffer.concat([
     decipher.update(encrypted.ciphertext),
     decipher.final()
@@ -77,17 +77,17 @@ export async function decrypt(
 }
 
 /**
- * 32バイトのランダムなマスター鍵を生成する
- * @returns 32バイトのマスター鍵
+ * Generates a random 32-byte master key
+ * @returns 32-byte master key
  */
 export function generateMasterKey(): Buffer {
   return randomBytes(KEY_LENGTH);
 }
 
 /**
- * 16進数文字列からマスター鍵 Buffer を作成する
- * @param hex 16進数文字列（64文字）
- * @returns 32バイトのマスター鍵
+ * Creates a master key Buffer from a hexadecimal string
+ * @param hex Hexadecimal string (64 characters)
+ * @returns 32-byte master key
  */
 export function masterKeyFromHex(hex: string): Buffer {
   if (hex.length !== KEY_LENGTH * 2) {

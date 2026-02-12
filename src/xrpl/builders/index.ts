@@ -1,4 +1,4 @@
-// トランザクションビルダーのエクスポート
+// Transaction builders export
 export {
   buildMPTokenIssuanceCreate,
   type MPTIssuanceCreateParams

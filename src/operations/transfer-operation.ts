@@ -20,9 +20,9 @@ export interface TransferOperationParams {
 }
 
 /**
- * Transfer 操作（2ステップ）
- * 1. Receiver が authorize（MPTokenAuthorize）
- * 2. Sender が transfer（Payment）
+ * Transfer operation (2 steps)
+ * 1. Receiver authorizes (MPTokenAuthorize)
+ * 2. Sender transfers (Payment)
  */
 export class TransferOperation extends BaseOperation {
   constructor(
@@ -68,44 +68,44 @@ export class TransferOperation extends BaseOperation {
   }
 
   /**
-   * ステップ1: Receiver が authorize
+   * Step 1: Receiver authorizes
    */
   private async executeReceiverAuthorize(step: OperationStep): Promise<void> {
     try {
-      // 1. Receiver の秘密鍵を取得
+      // 1. Get receiver's secret key
       const receiverSecret = await this.secretManager.retrieveSecret(
         this.params.toWalletId
       );
       const receiverWallet = Wallet.fromSeed(receiverSecret);
 
-      // 2. MPTokenAuthorize トランザクションを構築
+      // 2. Build MPTokenAuthorize transaction
       const tx = buildMPTokenAuthorize({
         account: receiverWallet.address,
         mptIssuanceId: this.params.issuanceId
       });
 
       console.log(
-        `  → Receiver が MPT を authorize します: ${receiverWallet.address}`
+        `  → Receiver authorizing MPT: ${receiverWallet.address}`
       );
 
-      // 3. トランザクションを送信
+      // 3. Submit transaction
       const submitResult: SubmitResult = await submitTransaction(
         tx,
         receiverWallet
       );
 
-      // 4. ステップを SUBMITTED に更新
+      // 4. Update step to SUBMITTED
       await this.updateStepStatus(step.id!, StepStatus.SUBMITTED, {
         txHash: submitResult.txHash,
         submitResult: submitResult.submitResult
       });
 
-      console.log(`  → トランザクション送信: ${submitResult.txHash}`);
+      console.log(`  → Transaction submitted: ${submitResult.txHash}`);
 
-      // 5. 検証を待機
+      // 5. Wait for validation
       const validationResult = await waitForValidation(submitResult.txHash);
 
-      // 6. 検証結果に基づいてステップを更新
+      // 6. Update step based on validation result
       if (validationResult.status === ValidationStatus.SUCCESS) {
         await this.updateStepStatus(step.id!, StepStatus.VALIDATED_SUCCESS, {
           validatedResult: validationResult.details
@@ -122,29 +122,29 @@ export class TransferOperation extends BaseOperation {
         throw new Error('Transaction validation timeout');
       }
     } catch (error: any) {
-      console.error(`  ✗ ステップ1エラー:`, error);
+      console.error(`  ✗ Step 1 error:`, error);
       await this.updateStepStatus(step.id!, StepStatus.VALIDATED_FAILED);
       throw error;
     }
   }
 
   /**
-   * ステップ2: Sender が transfer
+   * Step 2: Sender transfers
    */
   private async executeSenderTransfer(step: OperationStep): Promise<void> {
     try {
-      // 1. Sender の秘密鍵を取得
+      // 1. Get sender's secret key
       const senderSecret = await this.secretManager.retrieveSecret(
         this.params.fromWalletId
       );
       const senderWallet = Wallet.fromSeed(senderSecret);
 
-      // 2. Receiver のアドレスを取得
+      // 2. Get receiver's address
       const receiverAddress = await this.getWalletAddress(
         this.params.toWalletId
       );
 
-      // 3. Payment トランザクションを構築
+      // 3. Build Payment transaction
       const tx = buildMPTPayment({
         account: senderWallet.address,
         destination: receiverAddress,
@@ -153,27 +153,27 @@ export class TransferOperation extends BaseOperation {
       });
 
       console.log(
-        `  → Sender が Receiver に MPT を transfer します: ${this.params.amount}`
+        `  → Sender transferring MPT to Receiver: ${this.params.amount}`
       );
 
-      // 4. トランザクションを送信
+      // 4. Submit transaction
       const submitResult: SubmitResult = await submitTransaction(
         tx,
         senderWallet
       );
 
-      // 5. ステップを SUBMITTED に更新
+      // 5. Update step to SUBMITTED
       await this.updateStepStatus(step.id!, StepStatus.SUBMITTED, {
         txHash: submitResult.txHash,
         submitResult: submitResult.submitResult
       });
 
-      console.log(`  → トランザクション送信: ${submitResult.txHash}`);
+      console.log(`  → Transaction submitted: ${submitResult.txHash}`);
 
-      // 6. 検証を待機
+      // 6. Wait for validation
       const validationResult = await waitForValidation(submitResult.txHash);
 
-      // 7. 検証結果に基づいてステップを更新
+      // 7. Update step based on validation result
       if (validationResult.status === ValidationStatus.SUCCESS) {
         await this.updateStepStatus(step.id!, StepStatus.VALIDATED_SUCCESS, {
           validatedResult: validationResult.details
@@ -190,14 +190,14 @@ export class TransferOperation extends BaseOperation {
         throw new Error('Transaction validation timeout');
       }
     } catch (error: any) {
-      console.error(`  ✗ ステップ2エラー:`, error);
+      console.error(`  ✗ Step 2 error:`, error);
       await this.updateStepStatus(step.id!, StepStatus.VALIDATED_FAILED);
       throw error;
     }
   }
 
   /**
-   * ウォレットのアドレスを取得
+   * Get wallet address
    */
   private async getWalletAddress(walletId: string): Promise<string> {
     const result = await this.pool.query(

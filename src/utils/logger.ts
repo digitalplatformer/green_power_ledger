@@ -15,8 +15,8 @@ export interface LogContext {
 }
 
 /**
- * 構造化ロガー
- * JSON 形式でログを出力し、operation_id/step_id/tx_hash などのコンテキストを含める
+ * Structured logger
+ * Outputs logs in JSON format including context like operation_id/step_id/tx_hash
  */
 class Logger {
   private minLevel: LogLevel;
@@ -42,28 +42,28 @@ class Logger {
   }
 
   /**
-   * デバッグログ
+   * Debug log
    */
   debug(message: string, context?: LogContext): void {
     this.log(LogLevel.DEBUG, message, context);
   }
 
   /**
-   * 情報ログ
+   * Info log
    */
   info(message: string, context?: LogContext): void {
     this.log(LogLevel.INFO, message, context);
   }
 
   /**
-   * 警告ログ
+   * Warning log
    */
   warn(message: string, context?: LogContext): void {
     this.log(LogLevel.WARN, message, context);
   }
 
   /**
-   * エラーログ
+   * Error log
    */
   error(message: string, error?: Error, context?: LogContext): void {
     const errorContext: LogContext = {
@@ -80,12 +80,12 @@ class Logger {
   }
 
   /**
-   * ログエントリを出力
+   * Output log entry
    */
   private log(level: LogLevel, message: string, context?: LogContext): void {
     if (level < this.minLevel) return;
 
-    // セキュリティチェック: 秘密鍵が含まれていないか確認
+    // Security check: verify no secret keys are included
     if (context && this.containsSensitiveData(context)) {
       console.error(
         JSON.stringify({
@@ -115,7 +115,7 @@ class Logger {
   }
 
   /**
-   * センシティブなデータが含まれていないかチェック
+   * Check if sensitive data is included
    */
   private containsSensitiveData(context: any): boolean {
     const sensitiveKeys = [
@@ -134,19 +134,19 @@ class Logger {
       }
 
       for (const key of Object.keys(obj)) {
-        // キー名のチェック
+        // Check key name
         if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
           return true;
         }
 
-        // 値のチェック（再帰）
+        // Check value (recursive)
         if (typeof obj[key] === 'object') {
           if (checkObject(obj[key])) {
             return true;
           }
         }
 
-        // 値が文字列の場合、sから始まる20文字以上の文字列はシードの可能性
+        // If value is string, strings starting with 's' and over 20 chars may be seeds
         if (
           typeof obj[key] === 'string' &&
           obj[key].length > 20 &&
@@ -163,7 +163,7 @@ class Logger {
   }
 
   /**
-   * メトリクスログ（パフォーマンス計測用）
+   * Metrics log (for performance measurement)
    */
   metric(name: string, value: number, context?: LogContext): void {
     this.log(LogLevel.INFO, `Metric: ${name}`, {

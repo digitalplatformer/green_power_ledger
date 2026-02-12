@@ -1,10 +1,10 @@
 services:
   postgres:
     image: "postgres:17.2"
-    container_name: igrid-api-db
+    container_name: grpl_postgres
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: igriddb
+      POSTGRES_DB: grpl_db

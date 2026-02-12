@@ -1,23 +1,23 @@
 /**
- * ウォレットシーケンスロック管理
- * プロセス内 mutex を使用して、1つのウォレットに対して同時に1つのトランザクションのみを許可
+ * Wallet sequence lock manager
+ * Uses in-process mutex to allow only one transaction at a time per wallet
  */
 export class WalletLockManager {
   private locks: Map<string, Promise<void>> = new Map();
 
   /**
-   * ウォレットをロックして関数を実行
-   * @param walletId ウォレットID
-   * @param fn 実行する関数
-   * @returns 関数の戻り値
+   * Lock wallet and execute function
+   * @param walletId Wallet ID
+   * @param fn Function to execute
+   * @returns Return value of function
    */
   async withLock<T>(walletId: string, fn: () => Promise<T>): Promise<T> {
-    // すでにロックが存在する場合は待機
+    // Wait if lock already exists
     while (this.locks.has(walletId)) {
       await this.locks.get(walletId);
     }
 
-    // ロックを作成
+    // Create lock
     let releaseLock: () => void;
     const lockPromise = new Promise<void>((resolve) => {
       releaseLock = resolve;
@@ -26,45 +26,45 @@ export class WalletLockManager {
     this.locks.set(walletId, lockPromise);
 
     try {
-      console.log(`🔒 ウォレット ${walletId} をロックしました`);
+      console.log(`🔒 Wallet ${walletId} locked`);
 
-      // 関数を実行
+      // Execute function
       const result = await fn();
 
-      console.log(`🔓 ウォレット ${walletId} のロックを解除しました`);
+      console.log(`🔓 Wallet ${walletId} unlocked`);
 
       return result;
     } finally {
-      // ロックを解放
+      // Release lock
       this.locks.delete(walletId);
       releaseLock!();
     }
   }
 
   /**
-   * 特定のウォレットがロックされているかチェック
-   * @param walletId ウォレットID
-   * @returns true: ロック中, false: 未ロック
+   * Check if specific wallet is locked
+   * @param walletId Wallet ID
+   * @returns true: locked, false: unlocked
    */
   isLocked(walletId: string): boolean {
     return this.locks.has(walletId);
   }
 
   /**
-   * 現在ロックされているウォレットの数を取得
-   * @returns ロック数
+   * Get number of currently locked wallets
+   * @returns Number of locks
    */
   getLockedCount(): number {
     return this.locks.size;
   }
 
   /**
-   * すべてのロックをクリア（テスト用）
+   * Clear all locks (for testing)
    */
   clearAll(): void {
     this.locks.clear();
   }
 }
 
-// シングルトンインスタンス
+// Singleton instance
 export const walletLockManager = new WalletLockManager();

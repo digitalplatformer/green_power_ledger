@@ -1,4 +1,4 @@
-// 操作関連のエクスポート
+// Operations export
 export {
   BaseOperation,
   OperationType,

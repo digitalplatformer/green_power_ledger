@@ -1,15 +1,15 @@
 import { Pool } from 'pg';
 
 /**
- * GET /api/operations/:operationId ハンドラー
- * 操作の詳細な状態を取得する
+ * GET /api/operations/:operationId handler
+ * Retrieves detailed status of an operation
  */
 export async function handleGetOperationStatus(
   operationId: string,
   pool: Pool
 ): Promise<Response> {
   try {
-    // 1. 操作を取得
+    // 1. Retrieve operation
     const operationResult = await pool.query(
       `SELECT id, type, idempotency_key, issuance_id, from_wallet_id, to_wallet_id,
               amount, status, error_code, error_message, created_at, updated_at
@@ -27,7 +27,7 @@ export async function handleGetOperationStatus(
 
     const operation = operationResult.rows[0];
 
-    // 2. ステップを取得
+    // 2. Retrieve steps
     const stepsResult = await pool.query(
       `SELECT id, step_no, kind, wallet_id, tx_type, tx_hash, status,
               submit_result, validated_result, last_checked_at, created_at, updated_at
@@ -39,7 +39,7 @@ export async function handleGetOperationStatus(
 
     const steps = stepsResult.rows;
 
-    // 3. レスポンスを返す
+    // 3. Return response
     return new Response(
       JSON.stringify({
         operation: {
@@ -84,8 +84,8 @@ export async function handleGetOperationStatus(
 }
 
 /**
- * GET /api/operations/:operationId?status=true ハンドラー
- * 操作の軽量な状態を取得する（ステップの詳細なし）
+ * GET /api/operations/:operationId?status=true handler
+ * Retrieves lightweight status of an operation (without step details)
  */
 export async function handleGetOperationStatusLightweight(
   operationId: string,

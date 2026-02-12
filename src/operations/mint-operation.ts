@@ -18,7 +18,6 @@ import { WalletSecretManager } from '../services/wallet-secret-manager';
 export interface MintOperationParams {
   operationId: string;
   issuanceId: string;
-  issuerWalletId: string;
   userWalletId: string;
   amount: string;
   assetScale?: number;
@@ -28,10 +27,10 @@ export interface MintOperationParams {
 }
 
 /**
- * Mint 操作（3ステップ）
- * 1. Issuer が MPT を mint（MPTokenIssuanceCreate）
- * 2. User が authorize（MPTokenAuthorize）
- * 3. Issuer が user に transfer（Payment）
+ * Mint operation (3 steps)
+ * 1. Issuer mints MPT (MPTokenIssuanceCreate)
+ * 2. User authorizes (MPTokenAuthorize)
+ * 3. Issuer transfers to user (Payment)
  */
 export class MintOperation extends BaseOperation {
   constructor(
@@ -80,17 +79,18 @@ export class MintOperation extends BaseOperation {
   }
 
   /**
-   * ステップ1: Issuer が MPT を mint
+   * Step 1: Issuer mints MPT
    */
   private async executeIssuerMint(step: OperationStep): Promise<void> {
     try {
-      // 1. Issuer の秘密鍵を取得
-      const issuerSecret = await this.secretManager.retrieveSecret(
-        this.params.issuerWalletId
-      );
-      const issuerWallet = Wallet.fromSeed(issuerSecret);
+      // 1. Get issuer's wallet from environment variable
+      const issuerSeed = process.env.ISSUER_SEED;
+      if (!issuerSeed) {
+        throw new Error('ISSUER_SEED is not configured in .env');
+      }
+      const issuerWallet = Wallet.fromSeed(issuerSeed);
 
-      // 2. MPTokenIssuanceCreate トランザクションを構築
+      // 2. Build MPTokenIssuanceCreate transaction
       const tx = buildMPTokenIssuanceCreate({
         account: issuerWallet.address,
         assetScale: this.params.assetScale,
@@ -99,32 +99,32 @@ export class MintOperation extends BaseOperation {
         metadata: this.params.metadata
       });
 
-      console.log(`  → Issuer が MPT を mint します: ${issuerWallet.address}`);
+      console.log(`  → Issuer minting MPT: ${issuerWallet.address}`);
 
-      // 3. トランザクションを送信
+      // 3. Submit transaction
       const submitResult: SubmitResult = await submitTransaction(
         tx,
         issuerWallet
       );
 
-      // 4. ステップを SUBMITTED に更新
+      // 4. Update step to SUBMITTED
       await this.updateStepStatus(step.id!, StepStatus.SUBMITTED, {
         txHash: submitResult.txHash,
         submitResult: submitResult.submitResult
       });
 
-      console.log(`  → トランザクション送信: ${submitResult.txHash}`);
+      console.log(`  → Transaction submitted: ${submitResult.txHash}`);
 
-      // 5. 検証を待機
+      // 5. Wait for validation
       const validationResult = await waitForValidation(submitResult.txHash);
 
-      // 6. 検証結果に基づいてステップを更新
+      // 6. Update step based on validation result
       if (validationResult.status === ValidationStatus.SUCCESS) {
         await this.updateStepStatus(step.id!, StepStatus.VALIDATED_SUCCESS, {
           validatedResult: validationResult.details
         });
 
-        // MPT Issuance ID を抽出して operations テーブルに保存
+        // Extract MPT Issuance ID and save to operations table
         const mptIssuanceId = this.extractMPTIssuanceId(
           validationResult.details
         );
@@ -148,52 +148,52 @@ export class MintOperation extends BaseOperation {
         throw new Error('Transaction validation timeout');
       }
     } catch (error: any) {
-      console.error(`  ✗ ステップ1エラー:`, error);
+      console.error(`  ✗ Step 1 error:`, error);
       await this.updateStepStatus(step.id!, StepStatus.VALIDATED_FAILED);
       throw error;
     }
   }
 
   /**
-   * ステップ2: User が authorize
+   * Step 2: User authorizes
    */
   private async executeUserAuthorize(step: OperationStep): Promise<void> {
     try {
-      // 1. User の秘密鍵を取得
+      // 1. Get user's secret key
       const userSecret = await this.secretManager.retrieveSecret(
         this.params.userWalletId
       );
       const userWallet = Wallet.fromSeed(userSecret);
 
-      // 2. MPT Issuance ID を取得
+      // 2. Get MPT Issuance ID
       const mptIssuanceId = await this.getMPTIssuanceId();
 
-      // 3. MPTokenAuthorize トランザクションを構築
+      // 3. Build MPTokenAuthorize transaction
       const tx = buildMPTokenAuthorize({
         account: userWallet.address,
         mptIssuanceId
       });
 
-      console.log(`  → User が MPT を authorize します: ${userWallet.address}`);
+      console.log(`  → User authorizing MPT: ${userWallet.address}`);
 
-      // 4. トランザクションを送信
+      // 4. Submit transaction
       const submitResult: SubmitResult = await submitTransaction(
         tx,
         userWallet
       );
 
-      // 5. ステップを SUBMITTED に更新
+      // 5. Update step to SUBMITTED
       await this.updateStepStatus(step.id!, StepStatus.SUBMITTED, {
         txHash: submitResult.txHash,
         submitResult: submitResult.submitResult
       });
 
-      console.log(`  → トランザクション送信: ${submitResult.txHash}`);
+      console.log(`  → Transaction submitted: ${submitResult.txHash}`);
 
-      // 6. 検証を待機
+      // 6. Wait for validation
       const validationResult = await waitForValidation(submitResult.txHash);
 
-      // 7. 検証結果に基づいてステップを更新
+      // 7. Update step based on validation result
       if (validationResult.status === ValidationStatus.SUCCESS) {
         await this.updateStepStatus(step.id!, StepStatus.VALIDATED_SUCCESS, {
           validatedResult: validationResult.details
@@ -210,30 +210,31 @@ export class MintOperation extends BaseOperation {
         throw new Error('Transaction validation timeout');
       }
     } catch (error: any) {
-      console.error(`  ✗ ステップ2エラー:`, error);
+      console.error(`  ✗ Step 2 error:`, error);
       await this.updateStepStatus(step.id!, StepStatus.VALIDATED_FAILED);
       throw error;
     }
   }
 
   /**
-   * ステップ3: Issuer が user に transfer
+   * Step 3: Issuer transfers to user
    */
   private async executeIssuerTransfer(step: OperationStep): Promise<void> {
     try {
-      // 1. Issuer の秘密鍵を取得
-      const issuerSecret = await this.secretManager.retrieveSecret(
-        this.params.issuerWalletId
-      );
-      const issuerWallet = Wallet.fromSeed(issuerSecret);
+      // 1. Get issuer's wallet from environment variable
+      const issuerSeed = process.env.ISSUER_SEED;
+      if (!issuerSeed) {
+        throw new Error('ISSUER_SEED is not configured in .env');
+      }
+      const issuerWallet = Wallet.fromSeed(issuerSeed);
 
-      // 2. User のアドレスを取得
+      // 2. Get user's address
       const userAddress = await this.getUserAddress();
 
-      // 3. MPT Issuance ID を取得
+      // 3. Get MPT Issuance ID
       const mptIssuanceId = await this.getMPTIssuanceId();
 
-      // 4. Payment トランザクションを構築
+      // 4. Build Payment transaction
       const tx = buildMPTPayment({
         account: issuerWallet.address,
         destination: userAddress,
@@ -242,27 +243,27 @@ export class MintOperation extends BaseOperation {
       });
 
       console.log(
-        `  → Issuer が User に MPT を transfer します: ${this.params.amount}`
+        `  → Issuer transferring MPT to User: ${this.params.amount}`
       );
 
-      // 5. トランザクションを送信
+      // 5. Submit transaction
       const submitResult: SubmitResult = await submitTransaction(
         tx,
         issuerWallet
       );
 
-      // 6. ステップを SUBMITTED に更新
+      // 6. Update step to SUBMITTED
       await this.updateStepStatus(step.id!, StepStatus.SUBMITTED, {
         txHash: submitResult.txHash,
         submitResult: submitResult.submitResult
       });
 
-      console.log(`  → トランザクション送信: ${submitResult.txHash}`);
+      console.log(`  → Transaction submitted: ${submitResult.txHash}`);
 
-      // 7. 検証を待機
+      // 7. Wait for validation
       const validationResult = await waitForValidation(submitResult.txHash);
 
-      // 8. 検証結果に基づいてステップを更新
+      // 8. Update step based on validation result
       if (validationResult.status === ValidationStatus.SUCCESS) {
         await this.updateStepStatus(step.id!, StepStatus.VALIDATED_SUCCESS, {
           validatedResult: validationResult.details
@@ -279,14 +280,14 @@ export class MintOperation extends BaseOperation {
         throw new Error('Transaction validation timeout');
       }
     } catch (error: any) {
-      console.error(`  ✗ ステップ3エラー:`, error);
+      console.error(`  ✗ Step 3 error:`, error);
       await this.updateStepStatus(step.id!, StepStatus.VALIDATED_FAILED);
       throw error;
     }
   }
 
   /**
-   * MPT Issuance ID を取得
+   * Get MPT Issuance ID
    */
   private async getMPTIssuanceId(): Promise<string> {
     const result = await this.pool.query(
@@ -302,7 +303,7 @@ export class MintOperation extends BaseOperation {
   }
 
   /**
-   * User のアドレスを取得
+   * Get user's address
    */
   private async getUserAddress(): Promise<string> {
     const result = await this.pool.query(
@@ -318,7 +319,7 @@ export class MintOperation extends BaseOperation {
   }
 
   /**
-   * 検証結果から MPT Issuance ID を抽出
+   * Extract MPT Issuance ID from validation result
    */
   private extractMPTIssuanceId(details: any): string | null {
     try {

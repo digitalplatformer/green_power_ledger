@@ -3,8 +3,8 @@ import { encrypt, decrypt} from '../crypto/encryption';
 import { secretCache } from '../crypto/secret-cache';
 
 /**
- * ウォレット秘密鍵管理サービス
- * 秘密鍵の暗号化保存・復号化・キャッシュを管理
+ * Wallet secret key management service
+ * Manages encrypted storage, decryption, and caching of secret keys
  */
 export class WalletSecretManager {
   constructor(
@@ -13,26 +13,26 @@ export class WalletSecretManager {
   ) {}
 
   /**
-   * 秘密鍵を暗号化してデータベースに保存
-   * @param walletId ウォレット ID
-   * @param secret 秘密鍵（平文）
+   * Encrypt secret key and save to database
+   * @param walletId Wallet ID
+   * @param secret Secret key (plaintext)
    */
   async storeSecret(walletId: string, secret: string): Promise<void> {
-    // issuer wallet の秘密鍵は .env で管理するため、保存を許可しない
+    // Issuer wallet secret is managed via .env, so saving is not allowed
     if (walletId === 'issuer') {
       throw new Error('Cannot store issuer secret. Issuer seed must be managed via .env');
     }
 
-    // 1. 秘密鍵を暗号化
+    // 1. Encrypt secret key
     const encrypted = await encrypt(secret, this.masterKey);
 
-    // 2. 暗号化コンテキスト（IV, authTag）を JSON に変換
+    // 2. Convert encryption context (IV, authTag) to JSON
     const encryptionContext = {
       iv: encrypted.iv.toString('hex'),
       authTag: encrypted.authTag.toString('hex')
     };
 
-    // 3. データベースに保存
+    // 3. Save to database
     await this.pool.query(
       `UPDATE wallets
        SET encrypted_secret = $1,
@@ -44,13 +44,13 @@ export class WalletSecretManager {
   }
 
   /**
-   * 秘密鍵を取得（キャッシュから取得、なければDB から復号化）
-   * issuer wallet の場合は .env から直接取得
-   * @param walletId ウォレット ID
-   * @returns 復号済み秘密鍵
+   * Retrieve secret key (from cache if available, otherwise decrypt from DB)
+   * For issuer wallet, retrieve directly from .env
+   * @param walletId Wallet ID
+   * @returns Decrypted secret key
    */
   async retrieveSecret(walletId: string): Promise<string> {
-    // issuer wallet の特別処理: .env から直接返す
+    // Special handling for issuer wallet: return directly from .env
     if (walletId === 'issuer') {
       const issuerSeed = process.env.ISSUER_SEED;
       if (!issuerSeed) {
@@ -59,13 +59,13 @@ export class WalletSecretManager {
       return issuerSeed;
     }
 
-    // 1. キャッシュをチェック（user wallet のみ）
+    // 1. Check cache (user wallet only)
     const cached = secretCache.get(walletId);
     if (cached) {
       return cached;
     }
 
-    // 2. データベースから取得
+    // 2. Retrieve from database
     const result = await this.pool.query(
       `SELECT encrypted_secret, encryption_context
        FROM wallets
@@ -83,10 +83,10 @@ export class WalletSecretManager {
       throw new Error(`Wallet ${walletId} has no encrypted secret`);
     }
 
-    // 3. 暗号化コンテキスト（PostgreSQL の JSONB は自動的にパースされる）
+    // 3. Encryption context (PostgreSQL JSONB is automatically parsed)
     const context = encryption_context;
 
-    // 4. 復号化
+    // 4. Decrypt
     const decrypted = await decrypt(
       {
         ciphertext: encrypted_secret,
@@ -96,22 +96,22 @@ export class WalletSecretManager {
       this.masterKey
     );
 
-    // 5. キャッシュに保存
+    // 5. Save to cache
     secretCache.set(walletId, decrypted);
 
     return decrypted;
   }
 
   /**
-   * キャッシュをクリア
-   * @param walletId ウォレット ID
+   * Clear cache
+   * @param walletId Wallet ID
    */
   clearCache(walletId: string): void {
     secretCache.clear(walletId);
   }
 
   /**
-   * すべてのキャッシュをクリア
+   * Clear all cache
    */
   clearAllCache(): void {
     secretCache.clearAll();

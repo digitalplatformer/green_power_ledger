@@ -1,30 +1,30 @@
 -- 008_alter_operations_wallet_ids_to_text.sql
--- wallet_id カラムを UUID から TEXT に変更
--- 理由: issuer wallet は 'issuer' という特別な文字列IDを使用するため
+-- Change wallet_id columns from UUID to TEXT
+-- Reason: Issuer steps now have NULL wallet_id (issuer is from env var)
 
--- operations テーブルの外部キー制約を削除
+-- Drop foreign key constraints from operations table
 ALTER TABLE operations
   DROP CONSTRAINT IF EXISTS operations_from_wallet_id_fkey;
 
 ALTER TABLE operations
   DROP CONSTRAINT IF EXISTS operations_to_wallet_id_fkey;
 
--- operations テーブルのカラムの型を TEXT に変更
+-- Change column types to TEXT in operations table
 ALTER TABLE operations
   ALTER COLUMN from_wallet_id TYPE TEXT USING from_wallet_id::TEXT;
 
 ALTER TABLE operations
   ALTER COLUMN to_wallet_id TYPE TEXT USING to_wallet_id::TEXT;
 
--- operation_steps テーブルの外部キー制約を削除
+-- Drop foreign key constraint from operation_steps table
 ALTER TABLE operation_steps
   DROP CONSTRAINT IF EXISTS operation_steps_wallet_id_fkey;
 
--- operation_steps テーブルのカラムの型を TEXT に変更
+-- Change column type to TEXT in operation_steps table
 ALTER TABLE operation_steps
   ALTER COLUMN wallet_id TYPE TEXT USING wallet_id::TEXT;
 
--- コメントを更新
-COMMENT ON COLUMN operations.from_wallet_id IS '送信元ウォレットID（TEXT: issuer の場合は "issuer"、user の場合は UUID）';
-COMMENT ON COLUMN operations.to_wallet_id IS '送信先ウォレットID（TEXT: UUID 文字列）';
-COMMENT ON COLUMN operation_steps.wallet_id IS 'このステップを実行するウォレットID（TEXT: issuer の場合は "issuer"、user の場合は UUID）';
+-- Update comments
+COMMENT ON COLUMN operations.from_wallet_id IS 'Source wallet ID (TEXT: NULL for issuer, UUID string for user)';
+COMMENT ON COLUMN operations.to_wallet_id IS 'Destination wallet ID (TEXT: UUID string)';
+COMMENT ON COLUMN operation_steps.wallet_id IS 'Wallet ID executing this step (TEXT: NULL for issuer, UUID string for user)';

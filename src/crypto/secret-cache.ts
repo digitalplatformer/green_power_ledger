@@ -4,24 +4,24 @@ interface CacheEntry {
 }
 
 /**
- * 復号済み秘密鍵用のメモリ内キャッシュ（TTL付き）
+ * In-memory cache for decrypted secrets (with TTL)
  */
 export class SecretCache {
   private cache: Map<string, CacheEntry> = new Map();
   private ttlMs: number;
   private cleanupIntervalId?: Timer;
 
-  constructor(ttlMs: number = 3600000) { // デフォルト1時間
+  constructor(ttlMs: number = 3600000) { // Default 1 hour
     this.ttlMs = ttlMs;
 
-    // 1分ごとに期限切れエントリをクリーンアップ
+    // Cleanup expired entries every minute
     this.cleanupIntervalId = setInterval(() => this.cleanup(), 60000);
   }
 
   /**
-   * 秘密鍵をキャッシュに保存
-   * @param walletId ウォレット ID
-   * @param secret 復号済み秘密鍵
+   * Store secret in cache
+   * @param walletId Wallet ID
+   * @param secret Decrypted secret
    */
   set(walletId: string, secret: string): void {
     const expiresAt = Date.now() + this.ttlMs;
@@ -29,9 +29,9 @@ export class SecretCache {
   }
 
   /**
-   * キャッシュから秘密鍵を取得
-   * @param walletId ウォレット ID
-   * @returns 復号済み秘密鍵（期限切れの場合は null）
+   * Retrieve secret from cache
+   * @param walletId Wallet ID
+   * @returns Decrypted secret (null if expired)
    */
   get(walletId: string): string | null {
     const entry = this.cache.get(walletId);
@@ -40,7 +40,7 @@ export class SecretCache {
       return null;
     }
 
-    // 期限切れチェック
+    // Expiration check
     if (Date.now() >= entry.expiresAt) {
       this.clear(walletId);
       return null;
@@ -50,20 +50,20 @@ export class SecretCache {
   }
 
   /**
-   * 特定のウォレットのキャッシュをクリア
-   * @param walletId ウォレット ID
+   * Clear cache for specific wallet
+   * @param walletId Wallet ID
    */
   clear(walletId: string): void {
     const entry = this.cache.get(walletId);
     if (entry) {
-      // 機密データをゼロフィル（セキュリティ対策）
+      // Zero-fill sensitive data (security measure)
       this.zeroFill(entry.secret);
       this.cache.delete(walletId);
     }
   }
 
   /**
-   * すべてのキャッシュをクリア
+   * Clear all cache entries
    */
   clearAll(): void {
     for (const [walletId] of this.cache) {
@@ -72,7 +72,7 @@ export class SecretCache {
   }
 
   /**
-   * 期限切れエントリをクリーンアップ
+   * Cleanup expired entries
    */
   private cleanup(): void {
     const now = Date.now();
@@ -94,18 +94,18 @@ export class SecretCache {
   }
 
   /**
-   * 文字列をゼロで上書き（機密データの消去）
-   * @param str 消去する文字列
+   * Overwrite string with zeros (sensitive data erasure)
+   * @param str String to erase
    */
   private zeroFill(str: string): void {
-    // Note: JavaScript の文字列は immutable なので、
-    // ガベージコレクションを促進する以上の完全な消去は不可能
-    // この実装は best-effort のセキュリティ対策
+    // Note: JavaScript strings are immutable, so complete erasure
+    // beyond promoting garbage collection is not possible.
+    // This implementation is a best-effort security measure.
     str = '\0'.repeat(str.length);
   }
 
   /**
-   * クリーンアップタイマーを停止
+   * Stop cleanup timer
    */
   destroy(): void {
     if (this.cleanupIntervalId) {
@@ -116,15 +116,15 @@ export class SecretCache {
   }
 
   /**
-   * キャッシュサイズを取得
-   * @returns キャッシュエントリ数
+   * Get cache size
+   * @returns Number of cache entries
    */
   size(): number {
     return this.cache.size;
   }
 }
 
-// シングルトンインスタンス
+// Singleton instance
 export const secretCache = new SecretCache(
   parseInt(process.env.SECRET_CACHE_TTL_MS || '3600000', 10)
 );

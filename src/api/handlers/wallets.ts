@@ -4,31 +4,31 @@ import { WalletSecretManager } from '../../services/wallet-secret-manager';
 import { masterKeyFromHex } from '../../crypto/encryption';
 
 export interface CreateWalletRequest {
-  seed?: string; // 任意: 既存のシードを使用する場合
+  seed?: string; // Optional: used when importing an existing seed
 }
 
 /**
- * POST /api/wallets ハンドラー
- * 新しい user ウォレットを作成する
- * 注意: issuer ウォレットは .env で管理されており、このエンドポイントでは作成できません
+ * POST /api/wallets handler
+ * Creates a new user wallet
+ * Note: Issuer wallet is managed via .env and cannot be created through this endpoint
  */
 export async function handleCreateWallet(
   req: Request,
   pool: Pool
 ): Promise<Response> {
   try {
-    // 1. リクエストボディをパース
+    // 1. Parse request body
     const body = await req.json() as CreateWalletRequest;
 
-    // 2. ウォレットマネージャーを初期化
+    // 2. Initialize wallet manager
     const masterKey = masterKeyFromHex(process.env.ENCRYPTION_MASTER_KEY!);
     const secretManager = new WalletSecretManager(pool, masterKey);
     const walletManager = new WalletManager(pool, secretManager);
 
-    // 3. user ウォレットを作成
+    // 3. Create user wallet
     const wallet = await walletManager.createUserWallet(body.seed);
 
-    // 4. レスポンスを返す
+    // 4. Return response
     return new Response(
       JSON.stringify({
         id: wallet.id,
@@ -49,9 +49,9 @@ export async function handleCreateWallet(
 }
 
 /**
- * GET /api/wallets/:walletId ハンドラー
- * ウォレット情報を取得する
- * walletId が 'issuer' の場合は virtual wallet を返す
+ * GET /api/wallets/:walletId handler
+ * Retrieves wallet information
+ * Returns virtual wallet when walletId is 'issuer'
  */
 export async function handleGetWallet(
   walletId: string,
@@ -91,15 +91,15 @@ export async function handleGetWallet(
 }
 
 /**
- * POST /api/wallets/:walletId/fund ハンドラー
- * テストネット/デブネットの faucet からウォレットに資金を供給する
+ * POST /api/wallets/:walletId/fund handler
+ * Supplies funds to a wallet from the testnet/devnet faucet
  */
 export async function handleFundWallet(
   walletId: string,
   pool: Pool
 ): Promise<Response> {
   try {
-    // 1. Issuer wallet への funding を拒否
+    // 1. Reject funding to issuer wallet
     if (walletId === 'issuer') {
       return new Response(
         JSON.stringify({
@@ -110,15 +110,15 @@ export async function handleFundWallet(
       );
     }
 
-    // 2. ウォレットマネージャーを初期化
+    // 2. Initialize wallet manager
     const masterKey = masterKeyFromHex(process.env.ENCRYPTION_MASTER_KEY!);
     const secretManager = new WalletSecretManager(pool, masterKey);
     const walletManager = new WalletManager(pool, secretManager);
 
-    // 3. 資金供給を実行
+    // 3. Execute funding
     const result = await walletManager.addFund(walletId);
 
-    // 4. レスポンスを返す
+    // 4. Return response
     return new Response(
       JSON.stringify(result),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -127,7 +127,7 @@ export async function handleFundWallet(
   } catch (error: any) {
     console.error('Fund wallet error:', error);
 
-    // ウォレットが見つからない場合
+    // When wallet is not found
     if (error.message.includes('not found')) {
       return new Response(
         JSON.stringify({ error: 'Wallet not found', details: error.message }),
@@ -135,7 +135,7 @@ export async function handleFundWallet(
       );
     }
 
-    // その他のエラー
+    // Other errors
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
